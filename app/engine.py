@@ -40,7 +40,17 @@ def used_keys(actions) -> set[str]:
                 keys.update(arg)
             elif kind in ("hold", "spam"):
                 keys.add(arg["key"])
+            elif kind == "click":
+                keys.add("MOUSE_" + arg)
     return keys
+
+
+def release(backend, key):
+    """Key-up for a key name, or button-up for 'MOUSE_LEFT' / 'MOUSE_RIGHT'."""
+    if key.startswith("MOUSE_"):
+        backend.mouse_button(key[6:], False)
+    else:
+        backend.key_up(key)
 
 
 def rupiah(amount: int) -> str:
@@ -69,7 +79,7 @@ class StepRunner:
     def release_all(self):
         for key in list(self.held):
             try:
-                self.b.key_up(key)
+                release(self.b, key)
             except Exception:
                 log.exception("gagal melepas %s", key)
         self.held.clear()
@@ -94,6 +104,15 @@ class StepRunner:
         self.b.key_up(key)
         self.held.discard(key)
 
+    def _click(self, button):
+        self.b.mouse_button(button, True)
+        self.held.add("MOUSE_" + button)
+        try:
+            self.sleep(self.s["tap_ms"] / 1000)
+        finally:
+            self.b.mouse_button(button, False)
+            self.held.discard("MOUSE_" + button)
+
     def _tap(self, key):
         self._down(key)
         try:
@@ -110,6 +129,8 @@ class StepRunner:
                 self._tap(key)
         elif kind == "random_tap":
             self._tap(random.choice(arg))
+        elif kind == "click":
+            self._click(arg)
         elif kind == "hold":
             self._down(arg["key"])
             self.sleep(self._cap(arg["ms"]))
@@ -241,7 +262,7 @@ class Engine:
             return
         for key in used_keys(cfg["actions"]):
             try:
-                self.backend.key_up(key)
+                release(self.backend, key)
             except Exception:
                 log.exception("gagal melepas %s", key)
 

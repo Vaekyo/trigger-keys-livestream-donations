@@ -34,6 +34,10 @@ class FakeInput:
     def mouse_move(self, dx, dy):
         self.events.append(("move", dx, dy))
 
+    def mouse_button(self, button, down):
+        self.events.append(("click-down" if down else "click-up", button))
+        (self.down.add if down else self.down.discard)("MOUSE_" + button)
+
     def foreground_process(self):
         return "VALORANT-Win64-Shipping.exe"
 
@@ -43,20 +47,24 @@ class ConfigTests(unittest.TestCase):
         self.cfg = validate(yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8")))
 
     def test_default_config_is_valid(self):
-        self.assertEqual(len(self.cfg["actions"]), 12)
+        self.assertEqual(len(self.cfg["actions"]), 7)
+        amounts = [a["min_amount"] for a in self.cfg["actions"]]
+        self.assertEqual(amounts, list(range(2000, 16000, 2000)))   # kelipatan 2.000
+        self.assertTrue(all(a["cooldown_s"] == 0 for a in self.cfg["actions"]))
 
     def test_tier_match_highest_not_above_amount(self):
         acts = self.cfg["actions"]
         self.assertIsNone(match_action(acts, 1999))
         self.assertEqual(match_action(acts, 2000)["name"], "Jump")
-        self.assertEqual(match_action(acts, 4999)["name"], "Inspect weapon")
-        self.assertEqual(match_action(acts, 12000)["name"], "Drop weapon")
-        self.assertEqual(match_action(acts, 1_000_000)["name"], "Chaos combo")
+        self.assertEqual(match_action(acts, 5999)["name"], "Crouch spam")
+        self.assertEqual(match_action(acts, 6000)["name"], "Random skill")
+        self.assertEqual(match_action(acts, 9000)["name"], "Drop weapon")
+        self.assertEqual(match_action(acts, 1_000_000)["name"], "Drunk aim")
 
     def test_disabled_tier_falls_back_to_lower(self):
         acts = [dict(a) for a in self.cfg["actions"]]
-        next(a for a in acts if a["name"] == "Spray")["enabled"] = False
-        self.assertEqual(match_action(acts, 6000)["name"], "Random skill")
+        next(a for a in acts if a["name"] == "Spin 360")["enabled"] = False
+        self.assertEqual(match_action(acts, 10000)["name"], "Drop weapon")
 
     def test_bad_key_rejected(self):
         with self.assertRaises(ConfigError):
@@ -64,7 +72,9 @@ class ConfigTests(unittest.TestCase):
 
     def test_bad_step_rejected(self):
         with self.assertRaises(ConfigError):
-            validate({"actions": [{"name": "x", "min_amount": 1, "steps": [{"click": "LMB"}]}]})
+            validate({"actions": [{"name": "x", "min_amount": 1, "steps": [{"click": "MIDDLE"}]}]})
+        with self.assertRaises(ConfigError):
+            validate({"actions": [{"name": "x", "min_amount": 1, "steps": [{"shoot": "LEFT"}]}]})
 
 
 class RunnerTests(unittest.TestCase):
@@ -101,6 +111,22 @@ class RunnerTests(unittest.TestCase):
         with self.assertRaises(OSError):
             r.run([{"hold": {"key": "LSHIFT", "ms": 50}}, {"tap": ["Y"]},
                    {"mouse": {"dx": 10, "dy": 0, "ms": 20}}])
+        self.assertEqual(fake.down, set())
+
+    def test_skill_then_click(self):
+        fake = FakeInput()
+        r = StepRunner(fake, SAFETY, threading.Event(), time.monotonic() + 5)
+        r.run([{"random_tap": ["C"]}, {"wait": 20}, {"click": "LEFT"}])
+        self.assertEqual(fake.events, [("down", "C"), ("up", "C"), ("click-down", "LEFT"), ("click-up", "LEFT")])
+
+    def test_failed_click_is_reported(self):
+        class Blocked(FakeInput):
+            def mouse_button(self, button, down):
+                raise OSError("SendInput gagal (error 87)")
+        fake = Blocked()
+        r = StepRunner(fake, SAFETY, threading.Event(), time.monotonic() + 5)
+        with self.assertRaises(OSError):
+            r.run([{"tap": ["Q"]}, {"click": "LEFT"}])
         self.assertEqual(fake.down, set())
 
     def test_mouse_total_and_jitter_returns_home(self):
@@ -177,24 +203,31 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(("down", "SPACE"), self.fake.events)
         self.assertEqual(self.fake.down, set())
 
+    async def test_queue_runs_back_to_back_in_order(self):
+        for i, amount in enumerate((2000, 8000, 2000)):
+            self.engine.submit(Donation("test", f"q{i}", "A", amount))
+        await asyncio.wait_for(self.engine.queue.join(), 5)
+        presses = [e[1] for e in self.fake.events if e[0] == "down"]
+        self.assertEqual(presses, ["SPACE", "G", "SPACE"])
+
     async def test_paused_donation_expires_without_input(self):
         self.engine.set_paused(True)
-        self.engine.submit(Donation("test", "p1", "A", 4000))
+        self.engine.submit(Donation("test", "p1", "A", 8000))
         await asyncio.wait_for(self.engine.queue.join(), 5)
-        self.assertNotIn(("down", "Y"), self.fake.events)
+        self.assertNotIn(("down", "G"), self.fake.events)
         self.assertIn("dilewati", self.engine.recent_log[-1]["result"])
 
     async def test_unfocused_waits(self):
         self.fake.foreground_process = lambda: "obs64.exe"
-        self.engine.submit(Donation("test", "f1", "A", 4000))
+        self.engine.submit(Donation("test", "f1", "A", 8000))
         await asyncio.wait_for(self.engine.queue.join(), 5)
-        self.assertNotIn(("down", "Y"), self.fake.events)
+        self.assertNotIn(("down", "G"), self.fake.events)
         self.assertIn("tidak fokus", self.engine.recent_log[-1]["result"])
 
     async def test_pause_mid_action_releases_keys(self):
-        self.engine.submit(Donation("test", "w1", "A", 8000))   # Walk only: hold SHIFT 10s
+        self.engine.submit(Donation("test", "w1", "A", 4000))   # Crouch spam: 3 s
         for _ in range(100):
-            if "LSHIFT" in self.fake.down:
+            if ("down", "LCTRL") in self.fake.events:
                 break
             await asyncio.sleep(0.01)
         self.engine.set_paused(True)

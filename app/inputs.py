@@ -1,7 +1,8 @@
 """OS input. Windows: plain user32 SendInput (the documented API, no drivers,
 no hooks into the game, no memory access). Other OS / dry_run: log only.
 
-Deliberately NOT supported: mouse clicks. The app never shoots or aims for you.
+Mouse: relative movement and left/right button clicks only (used to confirm abilities).
+There is no aim logic of any kind: the app never looks at the screen or targets anything.
 """
 from __future__ import annotations
 
@@ -28,6 +29,9 @@ class DryRunInput:
 
     def mouse_move(self, dx, dy):
         log.debug("[dry-run] mouse %+d %+d", dx, dy)
+
+    def mouse_button(self, button, down):
+        log.info("[dry-run] mouse %s %s", button, "tekan" if down else "lepas")
 
     def foreground_process(self):
         return None
@@ -62,6 +66,8 @@ if IS_WINDOWS:
     INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE = 0x1, 0x2, 0x8
     MOUSEEVENTF_MOVE = 0x1
+    MOUSE_BUTTON_FLAGS = {("LEFT", True): 0x2, ("LEFT", False): 0x4,
+                          ("RIGHT", True): 0x8, ("RIGHT", False): 0x10}
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
     WM_HOTKEY, MOD_NOREPEAT = 0x0312, 0x4000
 
@@ -76,7 +82,12 @@ if IS_WINDOWS:
 
     def _send(inp):
         if user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) != 1:
-            raise OSError(f"SendInput gagal (error {ctypes.get_last_error()})")
+            err = ctypes.get_last_error()
+            hint = ""
+            if inp.type == INPUT_MOUSE:
+                hint = (" - input MOUSE ditolak. Jalankan selftest.bat dengan Valorant DITUTUP: kalau di desktop "
+                        "berhasil, berarti Valorant/Vanguard yang memblokir mouse buatan (jangan diakali).")
+            raise OSError(f"SendInput gagal (error {err}){hint}")
 
     class WindowsInput:
         real = True
@@ -97,6 +108,11 @@ if IS_WINDOWS:
         def mouse_move(self, dx, dy):
             inp = INPUT(type=INPUT_MOUSE)
             inp.mi = MOUSEINPUT(int(dx), int(dy), 0, MOUSEEVENTF_MOVE, 0, 0)
+            _send(inp)
+
+        def mouse_button(self, button, down):
+            inp = INPUT(type=INPUT_MOUSE)
+            inp.mi = MOUSEINPUT(0, 0, 0, MOUSE_BUTTON_FLAGS[(button, down)], 0, 0)
             _send(inp)
 
         def foreground_process(self):

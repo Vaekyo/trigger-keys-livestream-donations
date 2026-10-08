@@ -8,10 +8,10 @@
 safety:
   kill_switch_key: F12          # hotkey global ON/PAUSE. Kalau tidak jalan, ganti F10 / PAUSE / CTRL+SHIFT+P
   start_paused: true            # mulai dalam keadaan PAUSED; nyalakan manual (F12 / panel)
-  gap_between_actions_s: 3      # jeda minimal antar aksi (cooldown global)
-  max_actions_per_minute: 6     # batas aksi per 60 detik
+  gap_between_actions_s: 0.5    # jeda kecil antar aksi di antrian (bukan cooldown; 0 = langsung)
+  max_actions_per_minute: 60    # batas pengaman per 60 detik (60 = praktis tanpa batas)
   max_hold_s: 10                # batas lama 1 langkah hold / spam / jitter / wait
-  max_action_s: 20              # batas total 1 aksi (termasuk Chaos); lewat -> semua tombol dilepas
+  max_action_s: 20              # batas total 1 aksi; lewat -> semua tombol dilepas
   max_queue_age_s: 180          # donasi yang menunggu lebih dari ini (paused / tidak fokus) dilewati
   require_focus: true           # hanya kirim input saat jendela Valorant yang aktif
   focus_process: VALORANT-Win64-Shipping.exe
@@ -30,25 +30,27 @@ overlay:
   default_sound: null           # contoh: /sounds/alert.mp3 (taruh file di folder sounds/)
 
 # ---------------------------------------------------------------------
-#  AKSI. Dipilih tier TERTINGGI yang min_amount <= nominal donasi.
+#  AKSI. Tier kelipatan Rp2.000. Dipilih tier TERTINGGI yang min_amount <= nominal.
+#  Tidak ada cooldown: semua donasi masuk ANTRIAN dan dijalankan satu per satu.
 #  Keybind = default Valorant. Ganti kalau bind kamu beda.
 #
 #  Jenis step:
 #    - tap: SPACE                       tekan sekali (bisa list: [3, 1])
 #    - random_tap: [C, Q, E]            tekan salah satu secara acak
+#    - click: LEFT                      klik mouse (LEFT / RIGHT), untuk konfirmasi skill
 #    - hold: {key: SHIFT, ms: 10000}    tahan tombol
 #    - spam: {key: CTRL, ms: 3000, every: 150}   tekan berulang
-#    - wait: 5000                       tunggu (ms)
+#    - wait: 200                        tunggu (ms)
 #    - mouse: {dx: 12857, dy: 0, ms: 600}        gerak mouse relatif
 #    - jitter: {ms: 5000, strength: 40, every: 25}  goyang acak, balik ke posisi awal
-#    - chaos: {count: 3, pool: all}     jalankan N aksi acak lain (pool: all atau [nama, ...])
 #  Tombol: A-Z, 0-9, SPACE, CTRL, SHIFT, ALT, TAB, ESC, ENTER, F1-F12, UP/DOWN/LEFT/RIGHT, dll.
-#  Klik mouse SENGAJA tidak didukung (tidak ada auto tembak / auto aim).
+#
+#  KALAU KLIK MOUSE GAGAL (error 87): di Valorant, Settings > Controls > Combat > Fire,
+#  isi tombol KEDUA (mis. K). Lalu di bawah ganti "- click: LEFT" jadi "- tap: K".
 # ---------------------------------------------------------------------
 actions:
   - name: Jump
     min_amount: 2000
-    cooldown_s: 3
     enabled: true
     overlay_text: "LOMPAT!"
     sound: null
@@ -56,64 +58,25 @@ actions:
       - tap: SPACE
 
   - name: Crouch spam
-    min_amount: 3000
-    cooldown_s: 10
+    min_amount: 4000
     enabled: true
     overlay_text: "Crouch spam 3 detik"
     sound: null
     steps:
       - spam: {key: CTRL, ms: 3000, every: 150}
 
-  - name: Inspect weapon
-    min_amount: 4000
-    cooldown_s: 5
-    enabled: true
-    overlay_text: "Inspect senjata"
-    sound: null
-    steps:
-      - tap: Y
-
   - name: Random skill
-    min_amount: 5000
-    cooldown_s: 15
+    min_amount: 6000
     enabled: true
     overlay_text: "Pakai skill random"
     sound: null
     steps:
-      - random_tap: [C, Q, E]
-
-  - name: Spray
-    min_amount: 6000
-    cooldown_s: 10
-    enabled: true
-    overlay_text: "Spray!"
-    sound: null
-    steps:
-      - tap: T
-
-  - name: Knife 5s
-    min_amount: 7000
-    cooldown_s: 20
-    enabled: true
-    overlay_text: "Pisau doang 5 detik"
-    sound: null
-    steps:
-      - tap: 3
-      - wait: 5000
-      - tap: 1
-
-  - name: Walk only
-    min_amount: 8000
-    cooldown_s: 30
-    enabled: true
-    overlay_text: "Jalan pelan 10 detik"
-    sound: null
-    steps:
-      - hold: {key: SHIFT, ms: 10000}
+      - random_tap: [C, Q, E]   # pilih skill
+      - wait: 250               # tunggu skill siap
+      - click: LEFT             # pakai skill
 
   - name: Drop weapon
-    min_amount: 10000
-    cooldown_s: 30
+    min_amount: 8000
     enabled: true
     overlay_text: "Buang senjata!"
     sound: null
@@ -121,40 +84,29 @@ actions:
       - tap: G
 
   - name: Spin 360
-    min_amount: 15000
-    cooldown_s: 20
+    min_amount: 10000
     enabled: true
     overlay_text: "Muter 360°"
     sound: null
     steps:
       # dx untuk 1 putaran = 360 / (sensitivity Valorant x 0.07)
       #   sens 0.40 -> 12857 | sens 0.30 -> 17143 | sens 0.50 -> 10286
-      # Pastikan di Practice Range, lalu sesuaikan.
       - mouse: {dx: 12857, dy: 0, ms: 600}
 
   - name: Ultimate
-    min_amount: 20000
-    cooldown_s: 60
+    min_amount: 12000
     enabled: true
     overlay_text: "ULTIMATE (kalau ready)"
     sound: null
     steps:
       - tap: X
+      - wait: 400
+      - click: LEFT
 
   - name: Drunk aim
-    min_amount: 25000
-    cooldown_s: 30
+    min_amount: 14000
     enabled: true
     overlay_text: "Mabok aim 5 detik"
     sound: null
     steps:
       - jitter: {ms: 5000, strength: 40, every: 25}
-
-  - name: Chaos combo
-    min_amount: 50000
-    cooldown_s: 60
-    enabled: true
-    overlay_text: "CHAOS COMBO"
-    sound: null
-    steps:
-      - chaos: {count: 3, pool: all}

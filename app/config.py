@@ -48,6 +48,11 @@ def _check_step(step, where, names):
         if kind == "tap":
             keys = [arg] if isinstance(arg, (str, int)) else arg
             return {"tap": [normalize_key(k) for k in keys]}
+        if kind == "click":
+            button = str(arg).strip().upper()
+            if button not in ("LEFT", "RIGHT"):
+                raise ConfigError(f"{where}: click harus LEFT atau RIGHT")
+            return {"click": button}
         if kind == "random_tap":
             return {"random_tap": [normalize_key(k) for k in arg]}
         if kind == "hold":
@@ -76,7 +81,7 @@ def _check_step(step, where, names):
     except ValueError as e:
         raise ConfigError(f"{where}: {e}") from e
     raise ConfigError(f"{where}: jenis step tidak dikenal '{kind}'. "
-                      "Pilihan: tap, random_tap, hold, wait, spam, mouse, jitter, chaos")
+                      "Pilihan: tap, random_tap, click, hold, wait, spam, mouse, jitter, chaos")
 
 
 def validate(raw) -> dict:
