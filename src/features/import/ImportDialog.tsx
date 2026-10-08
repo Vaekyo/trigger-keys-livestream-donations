@@ -92,12 +92,14 @@ export function ImportDialog({ files, categoryId, force }: { files: File[]; cate
     (async () => {
       const groups = groupFiles(files.filter((f) => f.type.startsWith('image/') || /\.(png|webp)$/i.test(f.name)));
       const out: ImportItem[] = [];
-      for (const g of groups) {
-        const it = await buildItem(g.name, g.files, project, categoryId, !!force, poseId ? [poseId] : []);
-        out.push(it);
-        if (it.previewUrl) urls.current.push(it.previewUrl);
+      // a few at a time, updating the list in batches so large drops stay fast
+      const BATCH = 8;
+      for (let i = 0; i < groups.length; i += BATCH) {
+        const chunk = await Promise.all(groups.slice(i, i + BATCH).map((g) => buildItem(g.name, g.files, project, categoryId, !!force, poseId ? [poseId] : [])));
+        for (const it of chunk) if (it.previewUrl) urls.current.push(it.previewUrl);
+        out.push(...chunk);
         if (!alive) return;
-        setItems([...out]);
+        if (i === 0 || i % (BATCH * 4) === 0 || i + BATCH >= groups.length) setItems([...out]);
       }
       setLoading(false);
       if (!out.length) {

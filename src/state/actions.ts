@@ -389,10 +389,34 @@ export function removeSwatch(hex: string) {
 /* Characters / gallery                                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Switch pose. Parts that do not exist in the new pose stay on the character
+ * (hidden) and come back when switching back. Required categories (e.g. face,
+ * eyes) that would end up empty get a compatible part for the new pose.
+ */
 export function setPose(poseId: ID) {
   const d = getDoc();
   const pose = d.project.poses.find((p) => p.id === poseId);
-  commitChar(`Switch pose to ${pose?.name ?? poseId}`, (c) => (c.poseId === poseId ? c : { ...c, poseId }));
+  const filled: string[] = [];
+  commitChar(`Switch pose to ${pose?.name ?? poseId}`, (c) => {
+    if (c.poseId === poseId) return c;
+    const items = [...c.items];
+    const visibleIn = (pid: ID, cat: ID) => items.some((i) => !i.shape && d.parts[i.partId]?.categoryId === cat && !d.parts[i.partId]?.deletedAt && d.parts[i.partId]?.poseIds.includes(pid));
+    for (const cat of d.project.categories) {
+      if (cat.allowNone) continue;
+      if (!visibleIn(c.poseId, cat.id) || visibleIn(poseId, cat.id)) continue;
+      const candidates = Object.values(d.parts).filter((p) => p.categoryId === cat.id && !p.deletedAt && p.poseIds.includes(poseId));
+      const pick = candidates.find((p) => p.favorite) ?? candidates[0];
+      if (!pick) continue;
+      const template = items.find((i) => !i.shape && d.parts[i.partId]?.categoryId === cat.id);
+      const inst = newInstance(pick.id, template ? template.colorGroupId : cat.colorGroupId, template?.z ?? nextZ(c, d.parts, cat.id));
+      if (template) inst.color = template.color;
+      items.push(inst);
+      filled.push(`${cat.name}: ${pick.name}`);
+    }
+    return { ...c, poseId, items };
+  });
+  if (filled.length) toast(`Added parts made for ${pose?.name ?? 'this pose'} — ${filled.join(', ')}`, { ms: 5000 });
 }
 
 export function renameCharacter(id: ID, name: string) {

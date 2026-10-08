@@ -2,7 +2,7 @@
 
 import type { Character, Doc, ID, Project } from '../model/types';
 import { newCharacter, newProject } from '../model/defaults';
-import { deleteMany, deleteProjectData, listAssetIds, listProjects, loadDoc, putOne, saveDocFull } from '../db/idb';
+import { deleteMany, deleteProjectData, getAllKeysByProject, listAssetIds, listProjects, loadDoc, putOne, saveDocFull } from '../db/idb';
 import { setAssetProject } from '../db/assets';
 import { clearRenderCache } from '../render/partRender';
 import { docStore } from './store';
@@ -58,6 +58,9 @@ async function collectGarbage(doc: Doc) {
     const all = await listAssetIds(doc.project.id);
     const orphans = all.filter((id) => !used.has(id));
     if (orphans.length) await deleteMany('assets', orphans.map((id) => [doc.project.id, id]));
+    const thumbKeys = await getAllKeysByProject('thumbs', doc.project.id);
+    const staleThumbs = thumbKeys.filter((k) => !doc.characters[(k as [ID, ID])[1]]);
+    if (staleThumbs.length) await deleteMany('thumbs', staleThumbs);
   } catch (err) {
     console.warn('Asset cleanup skipped', err);
   }

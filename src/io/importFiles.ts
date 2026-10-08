@@ -4,6 +4,7 @@ import { categoryAnchor } from '../render/guides';
 import { canvasSpaceAlign, compositeLayers, prepareLayers, type LayerSources, type PreparedLayers } from './partFactory';
 import { guessCategory } from '../features/library/filter';
 import { slugify } from '../model/ids';
+import { cropScale } from '../render/trim';
 
 export type FileRole = 'flat' | 'line' | 'fill';
 
@@ -132,7 +133,10 @@ export async function prepareItem(item: ImportItem, project: Project): Promise<I
     const preview = compositeLayers(prepared.layers, prepared.w, prepared.h);
     const { align, preAligned } = defaultAlign(prepared, project, item.categoryId);
     if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-    const blob = await new Promise<Blob | null>((r) => preview.toBlob(r));
+    // small preview image for the list (the full-size canvas is kept for aligning)
+    const k = Math.min(1, 192 / Math.max(preview.width, preview.height));
+    const small = cropScale(preview, { x: 0, y: 0, w: preview.width, h: preview.height }, k);
+    const blob = await new Promise<Blob | null>((r) => small.toBlob(r));
     return {
       ...item,
       prepared,
