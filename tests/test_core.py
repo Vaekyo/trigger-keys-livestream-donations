@@ -13,7 +13,7 @@ import yaml
 
 from app.config import ConfigError, ConfigStore, match_action, validate
 from app.engine import Aborted, Donation, Engine, StepRunner
-from app.platforms import parse_amount, parse_tako, parse_trakteer, tako_signature_ok, trakteer_token_ok
+from app.platforms import decode_channel_id, parse_amount, parse_tako, parse_trakteer, tako_signature_ok, trakteer_token_ok
 
 ROOT = Path(__file__).resolve().parent.parent
 SAFETY = {"max_hold_s": 10, "tap_ms": 10}
@@ -129,6 +129,14 @@ class PlatformTests(unittest.TestCase):
         d = parse_trakteer({"order_id": "o1", "id": "n1", "supporter_name": "Ani", "price": "Rp 25.000",
                             "supporter_message": None, "type": "new-tip-success"})
         self.assertEqual((d.id, d.amount, d.message), ("o1", 25000, ""))
+
+    def test_trakteer_channel_id(self):
+        import base64
+        cid = base64.b64encode(b"abc123.trstream-XyZ").decode()
+        self.assertEqual(decode_channel_id(cid), ("abc123", "trstream-XyZ"))
+        self.assertEqual(decode_channel_id(cid.rstrip("=") + "  "), ("abc123", "trstream-XyZ"))
+        with self.assertRaises(ValueError):
+            decode_channel_id("not-a-channel-id")
 
     def test_trakteer_token(self):
         self.assertTrue(trakteer_token_ok({"X-Webhook-Token": "abc"}, "abc"))

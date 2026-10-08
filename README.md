@@ -25,7 +25,7 @@ Panel test / CLI ───────────────┘               
 | Platform | Metode | Auth | Catatan |
 |---|---|---|---|
 | **Trakteer** | Webhook resmi (`trakteer.id/manage/webhook`) | header `X-Webhook-Token` | Field: `transaction_id`, `supporter_name`, `supporter_message`, `price`, `net_amount`… Perlu URL publik (tunnel). |
-| **Trakteer** | WebSocket feed overlay (`socket.trakteer.id`, protokol Pusher) | stream key `trstream-…` + hash | Tidak resmi (dipakai library komunitas `trakteerjs`), **tanpa tunnel**. Bisa berhenti jalan kalau Trakteer ganti sistem. |
+| **Trakteer** | WebSocket resmi (tab "Via Websocket", protokol Pusher `socket.trakteer.id`) | My Channel ID | **Tanpa tunnel.** Fitur masih beta. |
 | **Tako** | API callback (`tako.id/me/api-keys`, sejak v1.8.0 Juli 2025) | header `X-Tako-Signature` = HMAC-SHA256(body, Callback Secret) | Event `payment.success` + `data.amount`. Nama/pesan via `GET /api/v1/gift/{id}`. Format diambil dari kode komunitas, **belum ada dokumen resmi publik**. |
 | **Tako** | Webhook menu Integrasi | `?key=` rahasia di URL | Format payload tidak terdokumentasi publik; parser dibuat toleran. |
 | **Streamer.bot** | Tidak ada integrasi native Tako/Trakteer | – | Bisa dipicu lewat WebSocket API (`DoAction`). |
@@ -33,7 +33,7 @@ Panel test / CLI ───────────────┘               
 **Trade-off (kenapa desainnya begini):**
 1. Full Streamer.bot: tidak ada integrasi Tako/Trakteer; verifikasi token/HMAC, cek fokus, antrian, rate limit, dan "lepas semua tombol saat error" harus ditulis manual di C# → rapuh.
 2. Service Python kecil (dipilih): `SendInput` via `ctypes` tanpa compile apa pun; satu proses mengurus webhook + antrian + keamanan + overlay, sementara Streamer.bot tetap dipakai untuk alert/Stream Deck.
-3. Trakteer: webhook resmi lebih stabil tapi butuh tunnel; WebSocket tanpa tunnel tapi tidak resmi. Karena Tako tetap butuh tunnel, default-nya **webhook**, dan WebSocket jadi cadangan.
+3. Trakteer: WebSocket (tab "Via Websocket") tidak butuh tunnel, jadi jadi default. Webhook HTTP jadi cadangan.
 4. Tako: hanya webhook (butuh tunnel). Field-nya belum dikonfirmasi resmi, jadi `LOG_RAW_WEBHOOKS=1` menyimpan payload mentah untuk dicek.
 5. Risiko: Vanguard/Riot bisa mengabaikan atau menandai input buatan; tidak ada workaround (lihat peringatan).
 
@@ -56,19 +56,23 @@ Panel test / CLI ───────────────┘               
 
 ## 3. Sambungkan Trakteer
 
-**Pilihan A: Webhook (disarankan)** · `.env`: `TRAKTEER_MODE=webhook`
+**Pilihan A: Via Websocket (disarankan, TANPA ngrok)** · `.env`: `TRAKTEER_MODE=websocket`
+1. Buka <https://trakteer.id/manage/webhook>, lalu tab **Via Websocket**.
+2. Salin **My Channel ID** ke `TRAKTEER_CHANNEL_ID=` di `.env`, lalu simpan dan restart `start.bat`.
+3. Di console harus muncul `Trakteer: siap menerima donasi`.
+4. Kirim notifikasi tes dari dashboard Trakteer; tes itu harus muncul di log panel.
+   (`TRAKTEER_WS_TEST_CHANNEL=1` membuat tes ikut masuk.)
+
+Channel ID itu sama seperti password untuk melihat donasi masuk, jadi jangan dishare.
+
+**Pilihan B: Via Http / webhook (butuh ngrok)** · `.env`: `TRAKTEER_MODE=webhook`
 1. Jalankan tunnel ke port webhook (lihat bagian 5).
-2. Buka <https://trakteer.id/manage/webhook>, isi URL: `https://ALAMAT-TUNNEL/webhook/trakteer`, lalu aktifkan.
-3. Salin **token** dari halaman itu ke `TRAKTEER_WEBHOOK_TOKEN=` di `.env`.
-4. Klik **Send Webhook Test**; donasi tes akan muncul di log console/panel.
+2. Tab **Via Http** → Webhook URL: `https://ALAMAT-NGROK/webhook/trakteer`.
+   **Bukan** `http://127.0.0.1...`, karena server Trakteer tidak bisa menjangkau PC kamu (error 403 / 1003).
+3. Salin **My Webhook Token** ke `TRAKTEER_WEBHOOK_TOKEN=` di `.env`, lalu restart.
+4. Klik **Send Webhook Test**; harus muncul status 200.
 
-**Pilihan B: WebSocket (tanpa tunnel)** · `.env`: `TRAKTEER_MODE=websocket`
-1. `TRAKTEER_STREAM_KEY=`: stream key (diawali `trstream-`) dari <https://trakteer.id/manage/stream-settings>.
-2. `TRAKTEER_PAGE_HASH=`: kode "hash" dari URL halaman pengaturan alert
-   (`trakteer.id/manage/stream-settings/new-tip`, menurut library `trakteerjs`). Lokasinya bisa berubah.
-3. `TRAKTEER_WS_TEST_CHANNEL=1` agar tombol "Test" di dashboard Trakteer juga ikut masuk.
-
-Pakai **salah satu** mode saja, supaya satu donasi tidak terhitung dua kali.
+Pakai **salah satu** saja, supaya satu donasi tidak terhitung dua kali.
 
 ## 4. Sambungkan Tako
 
@@ -231,6 +235,7 @@ tests/              unit test (python -m unittest discover tests)
 | Tidak ada yang terjadi | Status masih PAUSED? Mode DRY-RUN? Valorant fokus? Lihat "Aksi sekarang" di panel. |
 | "Hotkey gagal didaftarkan" | Tombol dipakai aplikasi lain. Ganti `kill_switch_key`. |
 | Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
+| Trakteer webhook 403 / error 1003 | Webhook URL masih `127.0.0.1`. Pakai alamat ngrok, atau pindah ke mode websocket. |
 | Spin kurang/lebih dari 360° | Ubah `dx` (rumus di atas). |
 
 ## Sumber riset

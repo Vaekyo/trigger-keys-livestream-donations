@@ -3,8 +3,9 @@
 Sources (checked Oct 2026, see README "Riset"):
 - Trakteer webhook: POST JSON, header `X-Webhook-Token` = token from trakteer.id/manage/webhook.
   Fields: transaction_id, type, supporter_name, supporter_message, unit, quantity, price, net_amount.
-- Trakteer overlay WebSocket (unofficial, Pusher protocol): wss://socket.trakteer.id,
-  channel `creator-stream.{hash}.{trstream-key}`, event BroadcastNotificationCreated, price "Rp 5.000".
+- Trakteer WebSocket (trakteer.id/manage/webhook -> "Via Websocket", Pusher protocol):
+  wss://socket.trakteer.id, channel `creator-stream.{hash}.{trstream-key}` where "My Channel ID"
+  = base64("{hash}.{trstream-key}"); event BroadcastNotificationCreated, price "Rp 5.000".
 - Tako API callback (tako.id/me/api-keys): POST {"event":"payment.success","data":{id, amount,
   relatedGiftId,...}}, header `X-Tako-Signature` = hex HMAC-SHA256(raw body, Callback Secret).
   Donor name/message via GET https://tako.id/api/v1/gift/{relatedGiftId} (Bearer API key).
@@ -14,6 +15,7 @@ Sources (checked Oct 2026, see README "Riset"):
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -76,6 +78,20 @@ def parse_trakteer(body: dict, raw: bytes = b"") -> Donation | None:
     )
 
 
+def decode_channel_id(channel_id: str) -> tuple[str, str]:
+    """'My Channel ID' from trakteer.id/manage/webhook/websocket is base64("{hash}.{trstream-key}").
+    Returns (page_hash, stream_key)."""
+    text = channel_id.strip()
+    try:
+        decoded = base64.b64decode(text + "=" * (-len(text) % 4)).decode()
+    except (ValueError, UnicodeDecodeError) as e:
+        raise ValueError("TRAKTEER_CHANNEL_ID tidak valid (salin persis dari halaman Via Websocket)") from e
+    page_hash, _, stream_key = decoded.partition(".")
+    if not page_hash or not stream_key.startswith("trstream-"):
+        raise ValueError("TRAKTEER_CHANNEL_ID tidak valid (salin persis dari halaman Via Websocket)")
+    return page_hash, stream_key
+
+
 async def trakteer_ws_loop(engine, stream_key: str, page_hash: str, include_test: bool,
                            session: aiohttp.ClientSession, app_key: str = TRAKTEER_WS_APP_KEY):
     """Listen to Trakteer's overlay feed (no public URL needed). Reconnects forever."""
@@ -99,7 +115,9 @@ async def trakteer_ws_loop(engine, stream_key: str, page_hash: str, include_test
                                 await ws.send_json({"event": "pusher:subscribe",
                                                     "data": {"auth": "", "channel": ch}})
                         elif event == "pusher_internal:subscription_succeeded":
-                            log.info("Trakteer: subscribe %s OK", data.get("channel", "")[:28] + "…")
+                            log.info("Trakteer: siap menerima donasi (%s)", data.get("channel", "").split(".")[0])
+                        elif event in ("pusher:error", "pusher:subscription_error"):
+                            log.error("Trakteer WebSocket error: %s", data.get("data"))
                         elif event.endswith("BroadcastNotificationCreated"):
                             payload = data.get("data")
                             payload = json.loads(payload) if isinstance(payload, str) else payload

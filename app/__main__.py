@@ -13,14 +13,14 @@ from aiohttp import web
 from .config import ConfigError, ConfigStore
 from .engine import Engine
 from .inputs import make_backend, start_hotkey_thread
-from .platforms import trakteer_ws_loop
+from .platforms import decode_channel_id, trakteer_ws_loop
 from .server import Hub, build_local_app, build_webhook_app
 from .streamerbot import StreamerBot
 
 ROOT = Path(__file__).resolve().parent.parent
 log = logging.getLogger("app")
 
-ENV_KEYS = ["TRAKTEER_MODE", "TRAKTEER_WEBHOOK_TOKEN", "TRAKTEER_STREAM_KEY", "TRAKTEER_PAGE_HASH",
+ENV_KEYS = ["TRAKTEER_MODE", "TRAKTEER_CHANNEL_ID", "TRAKTEER_WEBHOOK_TOKEN", "TRAKTEER_STREAM_KEY", "TRAKTEER_PAGE_HASH",
             "TRAKTEER_WS_TEST_CHANNEL", "TAKO_CALLBACK_SECRET", "TAKO_WEBHOOK_KEY", "TAKO_API_KEY",
             "STREAMERBOT_ENABLED", "STREAMERBOT_URL", "STREAMERBOT_PASSWORD",
             "STREAMERBOT_ALERT_ACTION", "STREAMERBOT_STATE_ACTION", "CONTROL_TOKEN", "LOG_RAW_WEBHOOKS"]
@@ -67,12 +67,17 @@ async def main():
 
         mode = (env["TRAKTEER_MODE"] or "webhook").lower()
         if mode == "websocket":
-            if env["TRAKTEER_STREAM_KEY"] and env["TRAKTEER_PAGE_HASH"]:
+            page_hash, stream_key = env["TRAKTEER_PAGE_HASH"], env["TRAKTEER_STREAM_KEY"]
+            if env["TRAKTEER_CHANNEL_ID"]:
+                try:
+                    page_hash, stream_key = decode_channel_id(env["TRAKTEER_CHANNEL_ID"])
+                except ValueError as e:
+                    log.error("%s", e)
+            if page_hash and stream_key:
                 tasks.append(asyncio.create_task(trakteer_ws_loop(
-                    engine, env["TRAKTEER_STREAM_KEY"], env["TRAKTEER_PAGE_HASH"],
-                    truthy(env["TRAKTEER_WS_TEST_CHANNEL"]), session)))
+                    engine, stream_key, page_hash, truthy(env["TRAKTEER_WS_TEST_CHANNEL"]), session)))
             else:
-                log.error("TRAKTEER_MODE=websocket butuh TRAKTEER_STREAM_KEY dan TRAKTEER_PAGE_HASH")
+                log.error("TRAKTEER_MODE=websocket butuh TRAKTEER_CHANNEL_ID (dari halaman Via Websocket)")
         if mode == "webhook" and not env["TRAKTEER_WEBHOOK_TOKEN"]:
             log.warning("TRAKTEER_WEBHOOK_TOKEN kosong: webhook Trakteer akan ditolak")
         if not (env["TAKO_CALLBACK_SECRET"] or env["TAKO_WEBHOOK_KEY"]):
