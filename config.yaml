@@ -22,6 +22,7 @@ safety:
 server:
   panel_port: 8787              # panel, overlay, price list (JANGAN di-tunnel)
   webhook_port: 8788            # khusus webhook Tako/Trakteer (ini yang di-tunnel)
+  allow_lan: true               # true = panel bisa dibuka dari HP/MacBook di WiFi yang sama (pakai token)
 
 overlay:
   template: "{donor} donated Rp{amount} → {action}!"

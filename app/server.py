@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import ipaddress
 import json
 import logging
 import time
@@ -93,6 +94,34 @@ def build_webhook_app(engine, settings, session, raw_log: Path | None) -> web.Ap
 
 
 # ---- local server -------------------------------------------------------------
+def _is_local(request) -> bool:
+    try:
+        ip = ipaddress.ip_address((request.remote or "").split("%")[0])
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_loopback
+
+
+def lan_guard(token: str):
+    """Requests from this PC pass. Requests from a phone/laptop on the WiFi need the token once
+    (…/panel?token=XXX); it is then kept in a cookie."""
+    @web.middleware
+    async def guard(request, handler):
+        if _is_local(request):
+            return await handler(request)
+        given = request.query.get("token") or request.cookies.get("dc_token", "")
+        if not (token and hmac.compare_digest(given.encode(), token.encode())):
+            return web.Response(status=403, text="Token salah / tidak ada. Buka link lengkap dari console "
+                                                 "(http://IP-PC:8787/panel?token=...)")
+        resp = await handler(request)
+        if request.query.get("token") and not resp.prepared:
+            resp.set_cookie("dc_token", given, max_age=60 * 60 * 24 * 90, httponly=True, samesite="Strict")
+        return resp
+    return guard
+
+
 def build_local_app(engine, store, hub: Hub, control_token: str) -> web.Application:
     def page(name):
         async def handler(_):
@@ -169,7 +198,7 @@ def build_local_app(engine, store, hub: Hub, control_token: str) -> web.Applicat
         engine.set_paused({"pause": True, "resume": False, "toggle": not engine.paused}[what], "streamerbot")
         return web.Response(text="PAUSED" if engine.paused else "ON")
 
-    app = web.Application()
+    app = web.Application(middlewares=[lan_guard(control_token)])
     app.router.add_get("/", page("panel.html"))
     app.router.add_get("/panel", page("panel.html"))
     app.router.add_get("/overlay", page("overlay.html"))

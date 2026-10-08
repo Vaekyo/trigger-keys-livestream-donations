@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import secrets
+import socket
 import sys
 from pathlib import Path
 
@@ -36,6 +38,26 @@ def load_env(path: Path) -> dict:
                 k, v = line.split("=", 1)
                 values[k.strip()] = v.strip().strip('"').strip("'")
     return {k: os.environ.get(k, values.get(k, "")).strip() for k in ENV_KEYS}
+
+
+def panel_token(path: Path) -> str:
+    """Token for opening the panel from another device. Created once, then reused."""
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    token = secrets.token_urlsafe(6)
+    path.write_text(token, encoding="utf-8")
+    return token
+
+
+def lan_ip() -> str:
+    """This PC's address on the local network (no packet is actually sent)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        try:
+            sock.connect(("10.255.255.255", 1))
+            return sock.getsockname()[0]
+        except OSError:
+            return "IP-PC-KAMU"
 
 
 def truthy(v: str) -> bool:
@@ -85,12 +107,17 @@ async def main():
 
         raw_log = ROOT / "logs" / "raw_webhooks.jsonl" if truthy(env["LOG_RAW_WEBHOOKS"]) else None
         ports = cfg["server"]
+        lan = bool(ports["allow_lan"])
+        token = env["CONTROL_TOKEN"] or panel_token(ROOT / "logs" / "panel_token.txt")
         runners = []
-        for app, port in ((build_local_app(engine, store, hub, env["CONTROL_TOKEN"]), ports["panel_port"]),
-                          (build_webhook_app(engine, env, session, raw_log), ports["webhook_port"])):
+        # Only the panel may be reachable from the WiFi; the webhook port always stays on this PC.
+        for app, port, host in ((build_local_app(engine, store, hub, token), ports["panel_port"],
+                                 "0.0.0.0" if lan else "127.0.0.1"),
+                                (build_webhook_app(engine, env, session, raw_log), ports["webhook_port"],
+                                 "127.0.0.1")):
             runner = web.AppRunner(app, access_log=None)
             await runner.setup()
-            await web.TCPSite(runner, "127.0.0.1", port).start()
+            await web.TCPSite(runner, host, port).start()
             runners.append(runner)
 
         hotkey = str(cfg["safety"]["kill_switch_key"])
@@ -99,6 +126,7 @@ async def main():
         print(f"""
 === Donation Controls siap ===
  Panel test     : http://127.0.0.1:{p}/panel
+ Panel di HP/Mac: {f"http://{lan_ip()}:{p}/panel?token={token}" if lan else "mati (server.allow_lan: false di config.yaml)"}
  Overlay (OBS)  : http://127.0.0.1:{p}/overlay
  Price list     : http://127.0.0.1:{p}/pricelist
  Webhook (tunnel ke port ini): http://127.0.0.1:{ports['webhook_port']}  ->  /webhook/trakteer , /webhook/tako

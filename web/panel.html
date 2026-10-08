@@ -27,6 +27,7 @@
   td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; }
   .wide { grid-column: 1 / -1; overflow-x: auto; }
+  #ctl button { flex: 1; padding: 16px; font-size: 18px; }
   #out { margin-top: 8px; color: var(--muted); font-size: 13px; min-height: 18px; }
 </style>
 </head>
@@ -36,7 +37,7 @@
   <div class="card">
     <h2>Status</h2>
     <div id="big">…</div>
-    <div class="row">
+    <div class="row" id="ctl">
       <button class="green" onclick="ctl('resume')">ON</button>
       <button class="red" onclick="ctl('pause')">PAUSE (kill switch)</button>
     </div>
@@ -62,7 +63,8 @@
   <div class="card">
     <h2>Tes cepat per tier</h2>
     <div id="tiers" class="row" style="margin-top:0"></div>
-    <p class="kv">Klik tombol, lalu langsung klik ke jendela Valorant (Practice Range). Aksi menunggu sampai Valorant fokus.</p>
+    <p class="kv">Paling enak dari HP/MacBook: tetap main di Valorant, lalu tekan tombol di sini. Kalau dari PC yang sama,
+      klik tombol lalu langsung klik ke jendela Valorant (aksi menunggu sampai Valorant fokus).</p>
   </div>
 
   <div class="card wide">

@@ -25,7 +25,7 @@ SAFETY_DEFAULTS = {
     "dry_run": False,
     "tap_ms": 40,
 }
-SERVER_DEFAULTS = {"panel_port": 8787, "webhook_port": 8788}
+SERVER_DEFAULTS = {"panel_port": 8787, "webhook_port": 8788, "allow_lan": False}
 OVERLAY_DEFAULTS = {"template": "{donor} donated Rp{amount} → {action}!", "duration_s": 6,
                     "default_sound": None}
 

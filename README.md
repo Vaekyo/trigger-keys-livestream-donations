@@ -128,6 +128,21 @@ Suara: taruh file `.mp3` di folder `sounds/`, lalu di `config.yaml` isi `sound: 
    `http://127.0.0.1:8787/api/toggle?token=ISI_TOKEN` (atau `/api/pause`, `/api/resume`).
    Hubungkan action itu ke tombol Stream Deck lewat plugin Streamer.bot.
 
+## 7b. Buka panel dari HP / MacBook
+
+Supaya tidak perlu keluar dari Valorant:
+1. HP/MacBook harus di **WiFi yang sama** dengan PC gaming.
+2. `config.yaml` → `server.allow_lan: true` (sudah default).
+3. Jalankan `start.bat`. Di console muncul baris **Panel di HP/Mac**, contoh
+   `http://192.168.1.20:8787/panel?token=aW13jtzj`. Buka link itu **persis** (dengan token) di HP/Mac,
+   lalu bookmark. Setelah sekali dibuka, token disimpan di browser.
+4. Saat pertama kali, Windows Firewall akan bertanya: centang **Private networks**, lalu **Allow access**.
+   Kalau terlanjur ditolak: Windows Security → Firewall → *Allow an app through firewall* → centang Python (Private).
+
+Tanpa token, orang lain di WiFi yang sama tidak bisa membuka panel. Token ada di `logs/panel_token.txt`
+(atau pakai `CONTROL_TOKEN` di `.env`). Port webhook (8788) tetap hanya bisa diakses dari PC itu sendiri.
+Jangan nyalakan `allow_lan` di WiFi publik.
+
 ---
 
 ## 8. Keamanan & kontrol
@@ -237,6 +252,7 @@ tests/              unit test (python -m unittest discover tests)
 | Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
 | Trakteer webhook 403 / error 1003 | Webhook URL masih `127.0.0.1`. Pakai alamat ngrok, atau pindah ke mode websocket. |
 | Spin kurang/lebih dari 360° | Ubah `dx` (rumus di atas). |
+| Panel tidak bisa dibuka dari HP | WiFi sama? Link lengkap dengan `?token=`? Firewall Windows mengizinkan Python (Private)? |
 
 ## Sumber riset
 - Trakteer, *Panduan Webhook*: <https://help.trakteer.id/help-center/articles/70/panduan-webhook>
