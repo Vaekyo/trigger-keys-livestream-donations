@@ -45,8 +45,8 @@ overlay:
 #    - jitter: {ms: 5000, strength: 40, every: 25}  goyang acak, balik ke posisi awal
 #  Tombol: A-Z, 0-9, SPACE, CTRL, SHIFT, ALT, TAB, ESC, ENTER, F1-F12, UP/DOWN/LEFT/RIGHT, dll.
 #
-#  KALAU KLIK MOUSE GAGAL (error 87): di Valorant, Settings > Controls > Combat > Fire,
-#  isi tombol KEDUA (mis. K). Lalu di bawah ganti "- click: LEFT" jadi "- tap: K".
+#  WAJIB: di Valorant, Settings > Controls > Combat > Fire, isi tombol KEDUA = K.
+#  Skill & ult dipakai dengan menekan K (keyboard), karena Valorant menolak klik mouse buatan.
 # ---------------------------------------------------------------------
 actions:
   - name: Jump
@@ -73,7 +73,7 @@ actions:
     steps:
       - random_tap: [C, Q, E]   # pilih skill
       - wait: 250               # tunggu skill siap
-      - click: LEFT             # pakai skill
+      - tap: K                  # pakai skill (K = tombol Fire kedua di Valorant)
 
   - name: Drop weapon
     min_amount: 8000
@@ -83,30 +83,12 @@ actions:
     steps:
       - tap: G
 
-  - name: Spin 360
-    min_amount: 10000
-    enabled: true
-    overlay_text: "Muter 360°"
-    sound: null
-    steps:
-      # dx untuk 1 putaran = 360 / (sensitivity Valorant x 0.07)
-      #   sens 0.40 -> 12857 | sens 0.30 -> 17143 | sens 0.50 -> 10286
-      - mouse: {dx: 12857, dy: 0, ms: 600}
-
   - name: Ultimate
-    min_amount: 12000
+    min_amount: 10000
     enabled: true
     overlay_text: "ULTIMATE (kalau ready)"
     sound: null
     steps:
       - tap: X
       - wait: 400
-      - click: LEFT
-
-  - name: Drunk aim
-    min_amount: 14000
-    enabled: true
-    overlay_text: "Mabok aim 5 detik"
-    sound: null
-    steps:
-      - jitter: {ms: 5000, strength: 40, every: 25}
+      - tap: K                  # pakai ult (K = tombol Fire kedua)

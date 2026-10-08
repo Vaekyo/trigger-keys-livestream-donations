@@ -9,16 +9,17 @@
   html, body { margin: 0; background: transparent; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
   #alert {
     position: absolute; left: 50%; top: 12%; transform: translate(-50%, -40px) scale(.9);
-    opacity: 0; max-width: 80vw; padding: 18px 30px; border-radius: 16px;
-    background: rgba(15, 20, 30, .88); color: #fff; text-align: center;
-    border: 3px solid #ff4655; box-shadow: 0 10px 40px rgba(255, 70, 85, .45);
+    opacity: 0; max-width: 80vw; padding: 18px 30px;
+    background: transparent; color: #fff; text-align: center;
     transition: opacity .35s ease, transform .35s cubic-bezier(.2, 1.6, .4, 1);
   }
   #alert.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
   #alert.show #line { animation: pop .6s ease .15s both; }
-  #line { font-size: 40px; font-weight: 800; text-shadow: 0 2px 6px #000; }
+  /* No box behind the text, so a dark outline keeps it readable on any game background. */
+  #line, #msg { text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 10px rgba(0, 0, 0, .9); }
+  #line { font-size: 40px; font-weight: 800; }
   #line .donor { color: #ffd166; } #line .amount { color: #7cf29a; } #line .action { color: #ff4655; }
-  #msg { margin-top: 6px; font-size: 24px; color: #d6dde8; }
+  #msg { margin-top: 6px; font-size: 24px; color: #fff; }
   #msg:empty { display: none; }
   @keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
   #badge {

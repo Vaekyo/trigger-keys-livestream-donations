@@ -47,9 +47,9 @@ class ConfigTests(unittest.TestCase):
         self.cfg = validate(yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8")))
 
     def test_default_config_is_valid(self):
-        self.assertEqual(len(self.cfg["actions"]), 7)
+        self.assertEqual(len(self.cfg["actions"]), 5)
         amounts = [a["min_amount"] for a in self.cfg["actions"]]
-        self.assertEqual(amounts, list(range(2000, 16000, 2000)))   # kelipatan 2.000
+        self.assertEqual(amounts, list(range(2000, 12000, 2000)))   # kelipatan 2.000
         self.assertTrue(all(a["cooldown_s"] == 0 for a in self.cfg["actions"]))
 
     def test_tier_match_highest_not_above_amount(self):
@@ -59,12 +59,19 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(match_action(acts, 5999)["name"], "Crouch spam")
         self.assertEqual(match_action(acts, 6000)["name"], "Random skill")
         self.assertEqual(match_action(acts, 9000)["name"], "Drop weapon")
-        self.assertEqual(match_action(acts, 1_000_000)["name"], "Drunk aim")
+        self.assertEqual(match_action(acts, 1_000_000)["name"], "Ultimate")
 
     def test_disabled_tier_falls_back_to_lower(self):
         acts = [dict(a) for a in self.cfg["actions"]]
-        next(a for a in acts if a["name"] == "Spin 360")["enabled"] = False
+        next(a for a in acts if a["name"] == "Ultimate")["enabled"] = False
         self.assertEqual(match_action(acts, 10000)["name"], "Drop weapon")
+
+    def test_skills_use_keyboard_fire_not_mouse(self):
+        for a in self.cfg["actions"]:
+            kinds = [next(iter(st)) for st in a["steps"]]
+            self.assertFalse({"click", "mouse", "jitter"} & set(kinds), a["name"])
+        skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
+        self.assertEqual(skill["steps"][-1], {"tap": ["K"]})
 
     def test_bad_key_rejected(self):
         with self.assertRaises(ConfigError):

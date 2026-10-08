@@ -175,11 +175,12 @@ Tier bawaan (kelipatan Rp2.000):
 |---|---|---|
 | Rp2.000 | Jump | Space |
 | Rp4.000 | Crouch spam 3 dtk | Ctrl berulang |
-| Rp6.000 | Skill random | C / Q / E → klik kiri |
+| Rp6.000 | Skill random | C / Q / E → K |
 | Rp8.000 | Drop weapon | G |
-| Rp10.000 | Spin 360° | gerak mouse |
-| Rp12.000 | Ultimate | X → klik kiri |
-| Rp14.000 | Drunk aim 5 dtk | goyang mouse |
+| Rp10.000 | Ultimate | X → K |
+
+**Wajib di Valorant:** Settings → Controls → Combat → **Fire** → isi tombol **kedua** = `K`.
+Skill/ult dipakai lewat tombol K (keyboard), karena Valorant menolak klik mouse buatan (error 87).
 
 ```yaml
 - name: Random skill
@@ -190,27 +191,16 @@ Tier bawaan (kelipatan Rp2.000):
   steps:
     - random_tap: [C, Q, E]   # pilih skill
     - wait: 250               # tunggu skill siap
-    - click: LEFT             # pakai skill
+    - tap: K                  # pakai skill (Fire kedua)
 ```
 
 Step: `tap`, `random_tap`, `click`, `hold`, `spam`, `wait`, `mouse`, `jitter`. Penjelasannya ada di bagian atas `config.yaml`.
 Keybind bawaan = default Valorant (Space, Ctrl, C/Q/E, G, X). Ganti kalau bind kamu beda.
-Mau tambah tier? Salin satu blok, ganti `name` dan `min_amount` (mis. 16000), simpan.
+Mau tambah tier? Salin satu blok, ganti `name` dan `min_amount` (mis. 12000), simpan.
 
-**Kalibrasi Spin 360°:** `dx = 360 / (sensitivity × 0.07)`. Contoh: sens 0.4 → `12857`.
-Cek di Practice Range dan sesuaikan sampai pas satu putaran.
-
-**Kalau klik/gerak mouse gagal (`error 87` di log):**
-1. Tutup Valorant, lalu jalankan **`selftest.bat`**. Kursor harus bergerak membentuk kotak kecil.
-2. Kalau di desktop **berhasil** tapi di Valorant gagal, berarti Valorant/Vanguard memblokir input mouse buatan.
-   Ini **tidak diakali**. Solusinya pakai keyboard:
-   - Skill/Ult: di Valorant → Settings → Controls → Combat → **Fire**, isi tombol **kedua** (mis. `K`).
-     Lalu di `config.yaml` ganti `- click: LEFT` jadi `- tap: K`.
-   - Spin 360 & Drunk aim tidak punya versi keyboard → set `enabled: false`.
-3. Kalau di desktop juga **gagal**, kirim screenshot hasil selftest ke developer.
-
-Catatan: kalau skill sedang tidak ada charge, klik konfirmasi akan menembakkan senjata sekali ke arah mana pun
-kamu sedang melihat.
+Catatan: Valorant menolak input **mouse** buatan (error 87), jadi aksi default hanya pakai keyboard.
+Kalau skill sedang tidak ada charge, tombol K (Fire) akan menembakkan senjata sekali ke arah mana pun
+kamu sedang melihat. `selftest.bat` bisa dipakai untuk cek input keyboard/mouse di desktop.
 
 ---
 
@@ -226,7 +216,7 @@ Semua tes ini **tanpa uang sungguhan**.
 5. Tes alur webhook lengkap (token/HMAC ikut dicek):
    ```
    simulate.bat 4000 --via trakteer --name Budi
-   simulate.bat 14000 --via tako --name Caca --message "mabok!"
+   simulate.bat 10000 --via tako --name Caca --message "ult dong!"
    simulate.bat 2000 --id abc --id-repeat
    simulate.bat pause   |   simulate.bat resume
    ```
@@ -235,7 +225,7 @@ Semua tes ini **tanpa uang sungguhan**.
 1. `dry_run: false`. Buka Valorant → **Practice Range**.
 2. Di panel, klik **ON** (atau tekan F12), lalu klik tier `Rp2.000 · Jump`, dan **langsung klik ke jendela Valorant**
    (aksi menunggu sampai Valorant fokus).
-3. Cek satu per satu: Jump, Crouch spam, Skill (+klik), Drop, Spin (kalibrasi `dx`), Ult (+klik), Drunk aim.
+3. Cek satu per satu: Jump, Crouch spam, Skill (+K), Drop, Ult (+K).
 4. **Tes kill switch:** picu `Rp4.000 · Crouch spam`, lalu tekan **F12** di tengah jalan. Karakter harus langsung
    berhenti jongkok-berdiri dan status jadi PAUSED.
 5. **Tes antrian:** klik beberapa tier cepat-cepat. Semua harus jalan berurutan, satu per satu.
@@ -276,8 +266,8 @@ tests/              unit test (python -m unittest discover tests)
 | "Hotkey gagal didaftarkan" | Tombol dipakai aplikasi lain. Ganti `kill_switch_key`. |
 | Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
 | Trakteer webhook 403 / error 1003 | Webhook URL masih `127.0.0.1`. Pakai alamat ngrok, atau pindah ke mode websocket. |
-| `SendInput gagal (error 87)` di aksi mouse | Lihat "Kalau klik/gerak mouse gagal" di bagian 9. |
-| Spin kurang/lebih dari 360° | Ubah `dx` (rumus di atas). |
+| `SendInput gagal (error 87)` di aksi mouse | Valorant menolak mouse buatan. Pakai step keyboard (`tap`), bukan `click`/`mouse`/`jitter`. |
+| Skill cuma terpilih, tidak terpakai | Belum set Fire kedua = `K` di Valorant (Settings → Controls → Combat → Fire). |
 | Panel tidak bisa dibuka dari HP | WiFi sama? Link lengkap dengan `?token=`? Firewall Windows mengizinkan Python (Private)? |
 
 ## Sumber riset
