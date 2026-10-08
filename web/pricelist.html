@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Donation Price List</title>
+<!-- OBS Browser Source: http://127.0.0.1:8787/pricelist  (mis. 460x720). Diambil otomatis dari config.yaml -->
+<style>
+  html, body { margin: 0; background: transparent; font-family: "Segoe UI", system-ui, sans-serif; color: #fff; }
+  .panel { margin: 10px; padding: 16px 20px; border-radius: 14px; background: rgba(15, 20, 30, .85);
+           border-left: 5px solid #ff4655; }
+  h1 { margin: 0 0 10px; font-size: 24px; letter-spacing: .5px; }
+  h1 small { display: block; font-size: 14px; font-weight: 400; color: #aab4c3; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; font-size: 19px;
+       border-bottom: 1px solid rgba(255, 255, 255, .08); }
+  li:last-child { border-bottom: 0; }
+  .price { color: #7cf29a; font-weight: 700; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <h1>DONATE = CONTROL ME <small>Tako.id / Trakteer.id · nominal tertinggi yang cocok</small></h1>
+  <ul id="list"></ul>
+</div>
+<script>
+const rp = n => "Rp" + Number(n).toLocaleString("id-ID");
+async function load() {
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    const list = document.getElementById("list");
+    list.replaceChildren(...cfg.actions.filter(a => a.enabled).map(a => {
+      const li = document.createElement("li");
+      const name = document.createElement("span"); name.textContent = a.overlay_text;
+      const price = document.createElement("span"); price.className = "price"; price.textContent = rp(a.min_amount);
+      li.append(price, name);
+      return li;
+    }));
+  } catch (e) { /* app belum jalan: coba lagi nanti */ }
+}
+load();
+setInterval(load, 15000);   // ikut berubah kalau config.yaml diedit
+</script>
+</body>
+</html>

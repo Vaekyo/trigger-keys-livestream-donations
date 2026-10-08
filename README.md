@@ -1,1 +1,244 @@
-# trigger-keys-livestream-donations
+# Donation Controls: Valorant (Tako.id + Trakteer.id)
+
+Donasi dari penonton (IDR) → aksi keyboard/mouse di Valorant + alert di OBS.
+Aplikasi lokal Windows, Python, 2 dependency (`aiohttp`, `PyYAML`).
+
+```
+Trakteer (webhook / websocket) ─┐
+Tako (webhook)  ── tunnel ──────┼─► app (127.0.0.1) ─► antrian ─► cek: ON? cooldown? Valorant fokus?
+Panel test / CLI ───────────────┘                         │
+                                                          ├─► SendInput (keyboard / gerak mouse)
+                                                          ├─► overlay OBS (alert + badge ON/PAUSED)
+                                                          └─► Streamer.bot (action alert / status)
+```
+
+> ⚠️ **Baca dulu: risiko anti-cheat.** App ini hanya memakai `SendInput` standar Windows:
+> tanpa driver, tanpa baca memori, tanpa menyembunyikan diri dari Vanguard, dan **tidak pernah klik
+> mouse** (tidak ada auto tembak / auto aim). Tapi input buatan di game kompetitif tetap area abu-abu
+> di ToS Riot, jadi risikonya kamu tanggung sendiri. Tes dulu di **Practice Range**. Kalau Valorant
+> **mengabaikan** input dari app ini, **berhenti di situ**; app ini sengaja tidak mencoba mengakalinya.
+
+---
+
+## 1. Ringkasan riset (Okt 2026)
+
+| Platform | Metode | Auth | Catatan |
+|---|---|---|---|
+| **Trakteer** | Webhook resmi (`trakteer.id/manage/webhook`) | header `X-Webhook-Token` | Field: `transaction_id`, `supporter_name`, `supporter_message`, `price`, `net_amount`… Perlu URL publik (tunnel). |
+| **Trakteer** | WebSocket feed overlay (`socket.trakteer.id`, protokol Pusher) | stream key `trstream-…` + hash | Tidak resmi (dipakai library komunitas `trakteerjs`), **tanpa tunnel**. Bisa berhenti jalan kalau Trakteer ganti sistem. |
+| **Tako** | API callback (`tako.id/me/api-keys`, sejak v1.8.0 Juli 2025) | header `X-Tako-Signature` = HMAC-SHA256(body, Callback Secret) | Event `payment.success` + `data.amount`. Nama/pesan via `GET /api/v1/gift/{id}`. Format diambil dari kode komunitas, **belum ada dokumen resmi publik**. |
+| **Tako** | Webhook menu Integrasi | `?key=` rahasia di URL | Format payload tidak terdokumentasi publik; parser dibuat toleran. |
+| **Streamer.bot** | Tidak ada integrasi native Tako/Trakteer | – | Bisa dipicu lewat WebSocket API (`DoAction`). |
+
+**Trade-off (kenapa desainnya begini):**
+1. Full Streamer.bot: tidak ada integrasi Tako/Trakteer; verifikasi token/HMAC, cek fokus, antrian, rate limit, dan "lepas semua tombol saat error" harus ditulis manual di C# → rapuh.
+2. Service Python kecil (dipilih): `SendInput` via `ctypes` tanpa compile apa pun; satu proses mengurus webhook + antrian + keamanan + overlay, sementara Streamer.bot tetap dipakai untuk alert/Stream Deck.
+3. Trakteer: webhook resmi lebih stabil tapi butuh tunnel; WebSocket tanpa tunnel tapi tidak resmi. Karena Tako tetap butuh tunnel, default-nya **webhook**, dan WebSocket jadi cadangan.
+4. Tako: hanya webhook (butuh tunnel). Field-nya belum dikonfirmasi resmi, jadi `LOG_RAW_WEBHOOKS=1` menyimpan payload mentah untuk dicek.
+5. Risiko: Vanguard/Riot bisa mengabaikan atau menandai input buatan; tidak ada workaround (lihat peringatan).
+
+---
+
+## 2. Instalasi (Windows)
+
+1. Install **Python 3.11+** dari <https://python.org> (centang *Add python.exe to PATH*).
+2. Download / clone repo ini.
+3. Klik dua kali **`start.bat`**. Saat pertama kali, script ini akan:
+   - membuat `.venv` dan menginstall dependency,
+   - membuat `.env` dari `.env.example`,
+   - menjalankan app. Console menampilkan URL panel, overlay, dan webhook.
+4. Tutup app (Ctrl+C), lalu isi **`.env`** (lihat langkah 3 dan 4). Jalankan `start.bat` lagi.
+
+> Jalankan app **bukan sebagai Administrator** (Valorant juga normalnya tidak). Windows memblokir
+> input dari proses yang "levelnya" berbeda dengan game.
+
+---
+
+## 3. Sambungkan Trakteer
+
+**Pilihan A: Webhook (disarankan)** · `.env`: `TRAKTEER_MODE=webhook`
+1. Jalankan tunnel ke port webhook (lihat bagian 5).
+2. Buka <https://trakteer.id/manage/webhook>, isi URL: `https://ALAMAT-TUNNEL/webhook/trakteer`, lalu aktifkan.
+3. Salin **token** dari halaman itu ke `TRAKTEER_WEBHOOK_TOKEN=` di `.env`.
+4. Klik **Send Webhook Test**; donasi tes akan muncul di log console/panel.
+
+**Pilihan B: WebSocket (tanpa tunnel)** · `.env`: `TRAKTEER_MODE=websocket`
+1. `TRAKTEER_STREAM_KEY=`: stream key (diawali `trstream-`) dari <https://trakteer.id/manage/stream-settings>.
+2. `TRAKTEER_PAGE_HASH=`: kode "hash" dari URL halaman pengaturan alert
+   (`trakteer.id/manage/stream-settings/new-tip`, menurut library `trakteerjs`). Lokasinya bisa berubah.
+3. `TRAKTEER_WS_TEST_CHANNEL=1` agar tombol "Test" di dashboard Trakteer juga ikut masuk.
+
+Pakai **salah satu** mode saja, supaya satu donasi tidak terhitung dua kali.
+
+## 4. Sambungkan Tako
+
+**Cara A: API Callback (disarankan, ada tanda tangan HMAC)**
+1. Buka <https://tako.id/me/api-keys> dan buat API Key.
+2. **Callback URL**: `https://ALAMAT-TUNNEL/webhook/tako`
+3. **Callback Secret**: isi teks acak panjang, lalu salin yang sama ke `TAKO_CALLBACK_SECRET=`.
+4. Salin API key ke `TAKO_API_KEY=` (dipakai untuk mengambil nama dan pesan donatur).
+
+**Cara B: Webhook menu Integrasi**
+1. Isi `TAKO_WEBHOOK_KEY=` dengan teks acak.
+2. URL webhook di Tako: `https://ALAMAT-TUNNEL/webhook/tako?key=TEKS_ACAK_TADI`
+
+Lalu kirim donasi kecil ke akun sendiri dan cek `logs/raw_webhooks.jsonl`. Kalau nominal/nama
+terbaca salah, kirim isi file itu ke developer (tanpa token) supaya parser-nya disesuaikan.
+
+## 5. Tunnel (untuk webhook)
+
+Tunnel **hanya** ke port webhook **8788**. Port 8787 (panel/kontrol) jangan pernah di-tunnel.
+
+- **Cloudflare (gratis):** install `cloudflared`, lalu jalankan
+  `cloudflared tunnel --url http://localhost:8788`. Alamat `https://xxxx.trycloudflare.com` akan
+  **berganti setiap kali dijalankan**, jadi URL di Trakteer/Tako harus diupdate tiap stream.
+  Supaya permanen, pakai *named tunnel* + domain sendiri.
+- **ngrok:** akun gratis dapat 1 domain statis:
+  `ngrok http --url=NAMA.ngrok-free.app 8788`. URL-nya tetap, jadi cukup diisi sekali.
+
+## 6. OBS
+
+Tambah **Browser Source**:
+
+| Source | URL | Ukuran |
+|---|---|---|
+| Alert + badge | `http://127.0.0.1:8787/overlay` | 1920×1080 |
+| Hanya badge | `http://127.0.0.1:8787/overlay?alerts=0` | 1920×1080 |
+| Hanya alert | `http://127.0.0.1:8787/overlay?badge=0` | 1920×1080 |
+| Price list | `http://127.0.0.1:8787/pricelist` | 460×720 |
+
+Suara: taruh file `.mp3` di folder `sounds/`, lalu di `config.yaml` isi `sound: /sounds/nama.mp3`
+(per aksi) atau `overlay.default_sound`. Centang **Control audio via OBS** di Browser Source.
+
+## 7. Streamer.bot + Stream Deck
+
+1. Streamer.bot → **Servers/Clients → WebSocket Server** → Start (default `127.0.0.1:8080`, password opsional).
+2. `.env`: `STREAMERBOT_ENABLED=1`, isi `STREAMERBOT_PASSWORD` kalau diaktifkan.
+3. Buat action **`Donation Control Alert`**: dijalankan setiap aksi donasi dimulai, dengan argumen
+   `%donor%`, `%amount%`, `%amountText%`, `%action%`, `%message%`, `%platform%`. Pakai untuk TTS, efek,
+   scene, atau memicu Vfinity / alat lain yang sudah terhubung ke Streamer.bot.
+4. (Opsional) action **`Donation Control State`**: argumen `%state%` (`ON`/`PAUSED`), misalnya untuk
+   mengganti ikon tombol Stream Deck.
+5. **Tombol kill switch di Stream Deck:** isi `CONTROL_TOKEN=` (teks acak) di `.env`. Di Streamer.bot,
+   buat action dengan sub-action **Fetch URL**:
+   `http://127.0.0.1:8787/api/toggle?token=ISI_TOKEN` (atau `/api/pause`, `/api/resume`).
+   Hubungkan action itu ke tombol Stream Deck lewat plugin Streamer.bot.
+
+---
+
+## 8. Keamanan & kontrol
+
+- **Kill switch: `F12`** (global, tetap jalan saat Valorant fokus). Begitu ditekan, aksi yang sedang berjalan
+  berhenti, **semua tombol dilepas**, dan status jadi PAUSED. Tekan lagi untuk ON.
+  App **mulai dalam keadaan PAUSED** (`start_paused: true`).
+  Kalau F12 tidak jalan (Windows kadang mencadangkan F12 untuk debugger), ganti `kill_switch_key` ke `F10`, `PAUSE`,
+  atau `CTRL+SHIFT+P`, lalu restart.
+- **Antrian:** satu aksi per waktu, jeda `gap_between_actions_s`, maksimal `max_actions_per_minute`.
+- **Batas:** hold/spam/jitter/wait maksimal `max_hold_s` (10 dtk); satu aksi maksimal `max_action_s` (20 dtk).
+  Setiap tombol yang ditekan **selalu dilepas** di akhir, termasuk saat error, timeout, atau kill switch.
+- **Fokus:** input hanya dikirim kalau jendela aktif adalah `VALORANT-Win64-Shipping.exe`. Kalau tidak,
+  donasi menunggu (`when_unfocused: wait`) atau dilewati (`skip`). Donasi yang menunggu lebih dari
+  `max_queue_age_s` dilewati, dan overlay tetap mengucapkan terima kasih.
+- **Anti-duplikat:** ID transaksi yang sama diabaikan (tetap diingat setelah restart, di `logs/seen_ids.txt`).
+- **Log:** semua event ada di `logs/events.jsonl` (waktu, platform, donatur, nominal, aksi, hasil).
+- **Tidak ada klik mouse** di daftar step. Yang ada hanya gerak relatif untuk *spin* dan *drunk aim*.
+
+## 9. Atur aksi (`config.yaml`)
+
+Diedit langsung, **otomatis dimuat ulang** saat disimpan. Kalau ada salah ketik, error muncul di console dan config lama tetap dipakai.
+Aturan pemilihan: **tier tertinggi yang `min_amount` ≤ nominal**. Aksi `enabled: false` dilewati,
+dan tier di bawahnya yang dipakai.
+
+```yaml
+- name: Walk only
+  min_amount: 8000
+  cooldown_s: 30          # cooldown per aksi
+  enabled: true
+  overlay_text: "Jalan pelan 10 detik"
+  sound: /sounds/walk.mp3
+  steps:
+    - hold: {key: SHIFT, ms: 10000}
+```
+
+Step: `tap`, `random_tap`, `hold`, `spam`, `wait`, `mouse`, `jitter`, `chaos`. Penjelasannya ada di bagian atas `config.yaml`.
+Keybind bawaan = default Valorant (Space, Ctrl, Y, C/Q/E, T, 3/1, Shift, G, X). Ganti kalau bind kamu beda.
+
+**Kalibrasi Spin 360°:** `dx = 360 / (sensitivity × 0.07)`. Contoh: sens 0.4 → `12857`.
+Cek di Practice Range dan sesuaikan sampai pas satu putaran.
+
+Catatan: skill/ult di Valorant kadang butuh klik untuk dipakai. App ini hanya menekan tombolnya;
+klik konfirmasi tetap dari kamu (disengaja).
+
+---
+
+## 10. TEST MODE: wajib sebelum live
+
+Semua tes ini **tanpa uang sungguhan**.
+
+**A. Tes aman tanpa game (dry run)**
+1. `config.yaml` → `dry_run: true`. Jalankan `start.bat`.
+2. Buka panel <http://127.0.0.1:8787/panel> dan overlay di OBS.
+3. Klik **ON**, lalu klik tombol-tombol tier. Overlay muncul, dan log menampilkan tombol yang *akan* ditekan.
+4. Tes anti-duplikat: isi "ID donasi" yang sama lalu kirim 2×. Kiriman kedua harus `duplicate`.
+5. Tes alur webhook lengkap (token/HMAC ikut dicek):
+   ```
+   simulate.bat 4000 --via trakteer --name Budi
+   simulate.bat 25000 --via tako --name Caca --message "mabok!"
+   simulate.bat 2000 --id abc --id-repeat
+   simulate.bat pause   |   simulate.bat resume
+   ```
+
+**B. Practice Range (input sungguhan)**
+1. `dry_run: false`. Buka Valorant → **Practice Range**.
+2. Di panel, klik **ON** (atau tekan F12), lalu klik tier `Rp2.000 · Jump`, dan **langsung klik ke jendela Valorant**
+   (aksi menunggu sampai Valorant fokus).
+3. Cek satu per satu: Jump, Crouch spam, Inspect, Skill, Spray, Knife→balik 1, Walk 10 dtk, Drop,
+   Spin (kalibrasi `dx`), Ult, Drunk aim, Chaos.
+4. **Tes kill switch:** picu `Rp8.000 · Walk only`, lalu tekan **F12** di tengah jalan. Karakter harus langsung
+   berhenti jalan pelan dan status jadi PAUSED.
+5. Alt-Tab ke aplikasi lain lalu picu aksi: harus **menunggu** dan tidak mengetik di aplikasi lain.
+
+> ❗ Kalau di Practice Range **tidak ada reaksi sama sekali** (padahal log bilang `ok` dan mode `LIVE`),
+> berarti Valorant/Vanguard mengabaikan input buatan. **Berhenti**, jangan diakali. Kabari developer.
+
+**C. Tes platform asli**
+- Trakteer: tombol *Send Webhook Test* (mode webhook) atau tombol test overlay (mode websocket).
+- Tako: donasi kecil ke akun sendiri, lalu cek log dan `logs/raw_webhooks.jsonl`.
+
+---
+
+## Struktur file
+
+```
+app/__main__.py     start app, server, hotkey
+app/engine.py       antrian, cooldown, rate limit, fokus, step runner (lepas tombol di finally)
+app/inputs.py       SendInput Windows + dry-run + hotkey global
+app/platforms.py    Trakteer & Tako: auth + parsing + WebSocket Trakteer
+app/streamerbot.py  client WebSocket Streamer.bot
+app/server.py       webhook (8788) dan panel/overlay/API (8787)
+app/simulate.py     CLI test mode
+web/                overlay.html, pricelist.html, panel.html
+config.yaml         aksi + pengaturan keamanan
+.env.example        template token/rahasia
+tests/              unit test (python -m unittest discover tests)
+```
+
+## Masalah umum
+
+| Gejala | Solusi |
+|---|---|
+| Webhook `401 unauthorized` | Token/secret di `.env` beda dengan dashboard. Restart app setelah mengubah `.env`. |
+| Tidak ada yang terjadi | Status masih PAUSED? Mode DRY-RUN? Valorant fokus? Lihat "Aksi sekarang" di panel. |
+| "Hotkey gagal didaftarkan" | Tombol dipakai aplikasi lain. Ganti `kill_switch_key`. |
+| Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
+| Spin kurang/lebih dari 360° | Ubah `dx` (rumus di atas). |
+
+## Sumber riset
+- Trakteer, *Panduan Webhook*: <https://help.trakteer.id/help-center/articles/70/panduan-webhook>
+- Trakteer, artikel webhook: <https://medium.com/trakteer/tingkatkan-efisiensi-komunikasi-dengan-fitur-webhook-di-trakteer-ce89bc2a0051>
+- Contoh payload WebSocket Trakteer: <https://gist.github.com/rmdwirizki/e7b1507f08d993b8a68aceb28ed41c9a>
+- Library komunitas `trakteerjs` (WebSocket Pusher): <https://www.npmjs.com/package/trakteerjs>
+- Tako changelog (API v1.8.0): <https://help.tako.id/en/article/changelog-takos-update-kt4izf/>
+- Contoh callback Tako (`X-Tako-Signature`, `payment.success`): <https://github.com/sundanese2727/tako-relay>
+- Streamer.bot WebSocket client resmi (`DoAction`, auth): <https://www.npmjs.com/package/@streamerbot/client>
+- Daftar integrasi Streamer.bot: <https://docs.streamer.bot/guide/integrations>

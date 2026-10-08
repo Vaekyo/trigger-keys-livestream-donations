@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Donation Controls Panel</title>
+<style>
+  :root { --bg: #11151c; --card: #1a2029; --line: #2b3340; --text: #e7ecf3; --muted: #94a0b2;
+          --red: #ff4655; --green: #22a861; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 15px "Segoe UI", system-ui, sans-serif; }
+  h1 { margin: 0 0 12px; font-size: 20px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  label { display: block; margin: 8px 0 4px; color: var(--muted); font-size: 13px; }
+  input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0d1117; color: var(--text); font: inherit; }
+  button { padding: 9px 14px; border: 0; border-radius: 8px; background: #33415a; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { filter: brightness(1.15); }
+  button.red { background: var(--red); } button.green { background: var(--green); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  #tiers button { font-size: 13px; padding: 7px 10px; }
+  #big { font-size: 26px; font-weight: 800; padding: 10px 0; }
+  #big.on { color: #4ade80; } #big.paused { color: var(--red); }
+  .kv { color: var(--muted); font-size: 14px; line-height: 1.7; } .kv b { color: var(--text); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .wide { grid-column: 1 / -1; overflow-x: auto; }
+  #out { margin-top: 8px; color: var(--muted); font-size: 13px; min-height: 18px; }
+</style>
+</head>
+<body>
+<h1>Donation Controls: Panel Test</h1>
+<div class="grid">
+  <div class="card">
+    <h2>Status</h2>
+    <div id="big">…</div>
+    <div class="row">
+      <button class="green" onclick="ctl('resume')">ON</button>
+      <button class="red" onclick="ctl('pause')">PAUSE (kill switch)</button>
+    </div>
+    <div class="kv" style="margin-top:12px">
+      Antrian: <b id="q">0</b><br>
+      Aksi sekarang: <b id="cur">-</b><br>
+      Jendela aktif: <b id="fg">-</b><br>
+      Target fokus: <b id="target">-</b><br>
+      Mode: <b id="mode">-</b>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Simulasi donasi (TEST MODE, tanpa uang)</h2>
+    <label>Nama donatur</label><input id="donor" value="Tester">
+    <label>Nominal (Rp)</label><input id="amount" type="number" value="2000" min="1" step="1000">
+    <label>Pesan</label><input id="message" value="tes dari panel">
+    <label>ID donasi (opsional, isi sama 2x untuk tes anti-duplikat)</label><input id="did" placeholder="otomatis">
+    <div class="row"><button class="green" onclick="send()">Kirim donasi tes</button></div>
+    <div id="out"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tes cepat per tier</h2>
+    <div id="tiers" class="row" style="margin-top:0"></div>
+    <p class="kv">Klik tombol, lalu langsung klik ke jendela Valorant (Practice Range). Aksi menunggu sampai Valorant fokus.</p>
+  </div>
+
+  <div class="card wide">
+    <h2>Log</h2>
+    <table><thead><tr><th>Waktu</th><th>Platform</th><th>Donatur</th><th>Nominal</th><th>Aksi</th><th>Hasil</th></tr></thead>
+      <tbody id="log"></tbody></table>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const rp = n => "Rp" + Number(n).toLocaleString("id-ID");
+const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify(body || {}) }).then(r => r.json());
+
+function ctl(what) { post("/api/" + what); }
+
+async function send(amount) {
+  const res = await post("/api/test", { donor: $("donor").value, amount: amount || Number($("amount").value),
+                                        message: $("message").value, id: $("did").value || undefined });
+  $("out").textContent = JSON.stringify(res);
+}
+
+function showState(s) {
+  $("big").textContent = s.paused ? "PAUSED" : "ON";
+  $("big").className = s.paused ? "paused" : "on";
+  $("q").textContent = s.queue; $("cur").textContent = s.current || "-";
+  $("fg").textContent = s.foreground || "-"; $("target").textContent = s.focus_process;
+  $("mode").textContent = s.dry_run ? "DRY-RUN (input tidak dikirim)" : "LIVE (input dikirim)";
+}
+
+function addLog(e, top = true) {
+  const tr = document.createElement("tr");
+  [e.time, e.platform, e.donor, rp(e.amount), e.action || "-", e.result].forEach(v => {
+    const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
+  });
+  const body = $("log");
+  top ? body.prepend(tr) : body.appendChild(tr);
+  while (body.children.length > 100) body.lastChild.remove();
+}
+
+fetch("/api/config").then(r => r.json()).then(c => {
+  c.actions.filter(a => a.enabled).forEach(a => {
+    const b = document.createElement("button");
+    b.textContent = rp(a.min_amount) + " · " + a.name;
+    b.onclick = () => send(a.min_amount);
+    $("tiers").appendChild(b);
+  });
+});
+fetch("/api/log").then(r => r.json()).then(list => list.reverse().forEach(e => addLog(e, false)));
+const es = new EventSource("/events");
+es.addEventListener("state", e => showState(JSON.parse(e.data)));
+es.addEventListener("log", e => addLog(JSON.parse(e.data)));
+setInterval(() => fetch("/api/state").then(r => r.json()).then(showState).catch(() => {}), 2000);
+</script>
+</body>
+</html>

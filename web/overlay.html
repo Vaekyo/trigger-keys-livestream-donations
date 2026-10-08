@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Donation Controls Overlay</title>
+<!-- OBS Browser Source: http://127.0.0.1:8787/overlay  (1920x1080)
+     ?badge=0  -> sembunyikan badge   ?alerts=0 -> sembunyikan alert   -->
+<style>
+  html, body { margin: 0; background: transparent; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  #alert {
+    position: absolute; left: 50%; top: 12%; transform: translate(-50%, -40px) scale(.9);
+    opacity: 0; max-width: 80vw; padding: 18px 30px; border-radius: 16px;
+    background: rgba(15, 20, 30, .88); color: #fff; text-align: center;
+    border: 3px solid #ff4655; box-shadow: 0 10px 40px rgba(255, 70, 85, .45);
+    transition: opacity .35s ease, transform .35s cubic-bezier(.2, 1.6, .4, 1);
+  }
+  #alert.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  #alert.show #line { animation: pop .6s ease .15s both; }
+  #line { font-size: 40px; font-weight: 800; text-shadow: 0 2px 6px #000; }
+  #line .donor { color: #ffd166; } #line .amount { color: #7cf29a; } #line .action { color: #ff4655; }
+  #msg { margin-top: 6px; font-size: 24px; color: #d6dde8; }
+  #msg:empty { display: none; }
+  @keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  #badge {
+    position: absolute; right: 18px; top: 18px; padding: 8px 14px; border-radius: 999px;
+    font-size: 18px; font-weight: 700; color: #fff; background: #555; letter-spacing: .3px;
+  }
+  #badge.on { background: #1f9d55; } #badge.paused { background: #c53030; animation: blink 1.6s infinite; }
+  @keyframes blink { 50% { opacity: .55; } }
+</style>
+</head>
+<body>
+<div id="alert"><div id="line"></div><div id="msg"></div></div>
+<div id="badge">Donation Controls: …</div>
+<script>
+const params = new URLSearchParams(location.search);
+const badge = document.getElementById("badge");
+const box = document.getElementById("alert");
+if (params.get("badge") === "0") badge.style.display = "none";
+const showAlerts = params.get("alerts") !== "0";
+let template = "{donor} donated Rp{amount} → {action}!", duration = 6;
+fetch("/api/config").then(r => r.json()).then(c => { template = c.overlay.template; duration = c.overlay.duration_s; });
+
+// Builds the line with textContent only (donor names / messages are untrusted).
+function render(a) {
+  const line = document.getElementById("line");
+  line.replaceChildren();
+  const values = { donor: a.donor, amount: a.amount_text, action: a.skipped ? "makasih! (aksi dilewati)" : a.action,
+                   platform: a.platform, message: a.message };
+  template.split(/(\{\w+\})/).forEach(part => {
+    const m = part.match(/^\{(\w+)\}$/);
+    const span = document.createElement("span");
+    if (m && m[1] in values) { span.className = m[1]; span.textContent = values[m[1]]; }
+    else span.textContent = part;
+    line.appendChild(span);
+  });
+  document.getElementById("msg").textContent = a.message || "";
+}
+
+const queue = []; let busy = false;
+function next() {
+  if (busy || !queue.length) return;
+  busy = true;
+  const a = queue.shift();
+  render(a);
+  if (a.sound) new Audio(a.sound).play().catch(() => {});
+  box.classList.add("show");
+  setTimeout(() => { box.classList.remove("show"); setTimeout(() => { busy = false; next(); }, 450); }, duration * 1000);
+}
+
+function connect() {
+  const es = new EventSource("/events");
+  es.addEventListener("state", e => {
+    const s = JSON.parse(e.data);
+    badge.textContent = "Donation Controls: " + (s.paused ? "PAUSED" : "ON");
+    badge.className = s.paused ? "paused" : "on";
+  });
+  es.addEventListener("alert", e => { if (showAlerts) { queue.push(JSON.parse(e.data)); next(); } });
+  es.onerror = () => { badge.textContent = "Donation Controls: offline"; badge.className = ""; };
+}
+connect();
+</script>
+</body>
+</html>
