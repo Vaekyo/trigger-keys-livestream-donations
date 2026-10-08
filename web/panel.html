@@ -2,138 +2,257 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Donation Controls Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>Donation Controls</title>
 <style>
-  :root { --bg: #11151c; --card: #1a2029; --line: #2b3340; --text: #e7ecf3; --muted: #94a0b2;
-          --red: #ff4655; --green: #22a861; }
-  * { box-sizing: border-box; }
-  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 15px "Segoe UI", system-ui, sans-serif; }
-  h1 { margin: 0 0 12px; font-size: 20px; }
-  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
-  h2 { margin: 0 0 10px; font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  label { display: block; margin: 8px 0 4px; color: var(--muted); font-size: 13px; }
-  input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: #0d1117; color: var(--text); font: inherit; }
-  button { padding: 9px 14px; border: 0; border-radius: 8px; background: #33415a; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
-  button:hover { filter: brightness(1.15); }
-  button.red { background: var(--red); } button.green { background: var(--green); }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  #tiers button { font-size: 13px; padding: 7px 10px; }
-  #big { font-size: 26px; font-weight: 800; padding: 10px 0; }
-  #big.on { color: #4ade80; } #big.paused { color: var(--red); }
-  .kv { color: var(--muted); font-size: 14px; line-height: 1.7; } .kv b { color: var(--text); font-weight: 600; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  td, th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; }
-  .wide { grid-column: 1 / -1; overflow-x: auto; }
-  #ctl button { flex: 1; padding: 16px; font-size: 18px; }
-  .banner { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: #5c1a1f; border: 1px solid var(--red); }
-  #tiers button { text-align: left; } #tiers small { display: block; font-weight: 400; color: #c5cfdd; margin-top: 2px; }
-  #out { margin-top: 8px; color: var(--muted); font-size: 13px; min-height: 18px; }
+  :root {
+    --bg: #f5f5f7; --glass: rgba(255, 255, 255, .72); --glass-strong: rgba(255, 255, 255, .9);
+    --line: rgba(60, 60, 67, .12); --text: #1d1d1f; --muted: #6e6e73; --faint: #86868b;
+    --blue: #0071e3; --green: #34c759; --red: #ff3b30; --orange: #ff9500;
+    --fill: rgba(118, 118, 128, .12); --shadow: 0 8px 30px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+    --blob1: #c7d7ff; --blob2: #ffd6e7; --blob3: #d4f5e4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000; --glass: rgba(28, 28, 30, .72); --glass-strong: rgba(44, 44, 46, .9);
+      --line: rgba(84, 84, 88, .45); --text: #f5f5f7; --muted: #a1a1a6; --faint: #8e8e93;
+      --blue: #0a84ff; --green: #30d158; --red: #ff453a; --orange: #ff9f0a;
+      --fill: rgba(118, 118, 128, .24); --shadow: 0 8px 30px rgba(0, 0, 0, .5);
+      --blob1: #1c2a55; --blob2: #3a1630; --blob3: #0f3326;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text); background: var(--bg);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI Variable Text",
+          "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; letter-spacing: -.01em;
+  }
+  /* Soft colour blobs behind the frosted cards. */
+  body::before {
+    content: ""; position: fixed; inset: -20%; z-index: -1; filter: blur(80px); opacity: .9;
+    background: radial-gradient(35% 35% at 20% 15%, var(--blob1), transparent 70%),
+                radial-gradient(30% 30% at 85% 25%, var(--blob2), transparent 70%),
+                radial-gradient(35% 35% at 60% 90%, var(--blob3), transparent 70%);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px 40px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 8px 4px 22px; }
+  header h1 { margin: 0; font-size: clamp(28px, 5vw, 40px); font-weight: 700; letter-spacing: -.03em; line-height: 1.05; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 999px; font-weight: 600;
+          font-size: 13px; background: var(--glass); backdrop-filter: saturate(180%) blur(20px);
+          -webkit-backdrop-filter: saturate(180%) blur(20px); box-shadow: var(--shadow); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .on .dot { background: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 25%, transparent); }
+  .paused .dot { background: var(--red); box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 25%, transparent); }
+
+  .banner { margin: 0 0 14px; padding: 13px 16px; border-radius: 16px; font-size: 14px; font-weight: 500;
+            color: var(--red); background: color-mix(in srgb, var(--red) 12%, var(--glass-strong));
+            border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card { grid-column: span 12; padding: 20px; border-radius: 22px; background: var(--glass);
+          backdrop-filter: saturate(180%) blur(24px); -webkit-backdrop-filter: saturate(180%) blur(24px);
+          border: 1px solid var(--line); box-shadow: var(--shadow); }
+  @media (min-width: 860px) { .s5 { grid-column: span 5; } .s7 { grid-column: span 7; } }
+  .card h2 { margin: 0 0 14px; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+  .card h2 small { display: block; margin-top: 2px; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+
+  /* Hero: big iOS switch */
+  .hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .hero .label { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .hero .state { font-size: 44px; font-weight: 700; letter-spacing: -.035em; line-height: 1.1; }
+  .hero .state.on { color: var(--green); } .hero .state.paused { color: var(--red); }
+  .switch { position: relative; width: 92px; height: 56px; flex: none; border: 0; padding: 0; border-radius: 999px;
+            background: var(--fill); cursor: pointer; transition: background .25s; }
+  .switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 48px; height: 48px; border-radius: 50%;
+                   background: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
+                   transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+  .switch[aria-checked="true"] { background: var(--green); }
+  .switch[aria-checked="true"]::after { transform: translateX(36px); }
+  .hint { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 18px; }
+  .stat { padding: 12px 14px; border-radius: 14px; background: var(--fill); min-width: 0; }
+  .stat span { display: block; font-size: 12px; color: var(--muted); }
+  .stat b { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  .foot { margin-top: 12px; font-size: 12px; color: var(--faint); overflow-wrap: anywhere; }
+
+  /* iOS grouped list */
+  .list { border-radius: 14px; overflow: hidden; background: var(--glass-strong); border: 1px solid var(--line); }
+  .row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; background: none;
+         color: inherit; font: inherit; text-align: left; }
+  .row + .row { border-top: 1px solid var(--line); }
+  button.row { cursor: pointer; transition: background .15s; }
+  button.row:hover { background: var(--fill); } button.row:active { background: color-mix(in srgb, var(--blue) 12%, transparent); }
+  .row .main { flex: 1; min-width: 0; }
+  .row .title { font-weight: 600; }
+  .row .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .amt { flex: none; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 700;
+         color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+  .chev { flex: none; color: var(--faint); font-size: 20px; line-height: 1; }
+
+  .field { display: flex; align-items: center; gap: 12px; padding: 4px 14px; min-height: 48px; }
+  .field + .field { border-top: 1px solid var(--line); }
+  .field label { flex: none; width: 34%; color: var(--text); }
+  .field input { flex: 1; min-width: 0; padding: 10px 0; border: 0; outline: 0; background: none;
+                 color: var(--text); font: inherit; text-align: right; }
+  .field input::placeholder { color: var(--faint); }
+  .btn { display: block; width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 14px; cursor: pointer;
+         background: var(--blue); color: #fff; font: inherit; font-weight: 600; font-size: 16px; transition: transform .1s, filter .15s; }
+  .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.98); }
+  #out { min-height: 18px; margin-top: 10px; font-size: 13px; color: var(--muted); text-align: center; }
+
+  .log .row { align-items: flex-start; }
+  .status { flex: none; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--faint); }
+  .status.ok { background: var(--green); } .status.wait { background: var(--blue); }
+  .status.skip { background: var(--orange); } .status.err { background: var(--red); }
+  .time { flex: none; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .empty { padding: 22px; text-align: center; color: var(--faint); }
 </style>
 </head>
 <body>
-<h1>Donation Controls: Panel Test</h1>
-<div id="cfgerr" class="banner" hidden></div>
-<div id="mousewarn" class="banner" hidden></div>
-<div class="grid">
-  <div class="card">
-    <h2>Status</h2>
-    <div id="big">…</div>
-    <div class="row" id="ctl">
-      <button class="green" onclick="ctl('resume')">ON</button>
-      <button class="red" onclick="ctl('pause')">PAUSE (kill switch)</button>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Donation Controls</h1>
+      <p>Tako.id · Trakteer.id → Valorant</p>
     </div>
-    <div class="kv" style="margin-top:12px">
-      Antrian: <b id="q">0</b><br>
-      Aksi sekarang: <b id="cur">-</b><br>
-      Jendela aktif: <b id="fg">-</b><br>
-      Target fokus: <b id="target">-</b><br>
-      Mode: <b id="mode">-</b><br>
-      Config: <b id="cfgpath" style="word-break: break-all">-</b>
-    </div>
-  </div>
+    <div id="pill" class="pill"><span class="dot"></span><span id="pilltext">Menyambung…</span></div>
+  </header>
 
-  <div class="card">
-    <h2>Simulasi donasi (TEST MODE, tanpa uang)</h2>
-    <label>Nama donatur</label><input id="donor" value="Tester">
-    <label>Nominal (angka saja, mis. 6000)</label><input id="amount" type="number" value="2000" min="1" step="1000">
-    <label>Pesan</label><input id="message" value="tes dari panel">
-    <label>ID donasi (opsional, isi sama 2x untuk tes anti-duplikat)</label><input id="did" placeholder="otomatis">
-    <div class="row"><button class="green" onclick="send()">Kirim donasi tes</button></div>
-    <div id="out"></div>
-  </div>
+  <div id="cfgerr" class="banner" hidden></div>
+  <div id="mousewarn" class="banner" hidden></div>
 
-  <div class="card">
-    <h2>Tes cepat per tier</h2>
-    <div id="tiers" class="row" style="margin-top:0"></div>
-    <p class="kv">Paling enak dari HP/MacBook: tetap main di Valorant, lalu tekan tombol di sini. Kalau dari PC yang sama,
-      klik tombol lalu langsung klik ke jendela Valorant (aksi menunggu sampai Valorant fokus).</p>
-  </div>
+  <div class="grid">
+    <section class="card s5">
+      <div class="hero">
+        <div>
+          <div class="label">Kontrol donasi</div>
+          <div id="big" class="state">…</div>
+        </div>
+        <button id="toggle" class="switch" role="switch" aria-checked="false" aria-label="Kontrol donasi ON/PAUSE"></button>
+      </div>
+      <p class="hint">Matikan kapan saja untuk berhenti seketika (sama dengan F12). Semua tombol langsung dilepas.</p>
+      <div class="stats">
+        <div class="stat"><span>Antrian</span><b id="q">0</b></div>
+        <div class="stat"><span>Mode</span><b id="mode">-</b></div>
+        <div class="stat"><span>Aksi sekarang</span><b id="cur">-</b></div>
+        <div class="stat"><span>Jendela aktif</span><b id="fg">-</b></div>
+      </div>
+      <div class="foot">Target fokus: <span id="target">-</span><br>Config: <span id="cfgpath">-</span></div>
+    </section>
 
-  <div class="card wide">
-    <h2>Log</h2>
-    <table><thead><tr><th>Waktu</th><th>Platform</th><th>Donatur</th><th>Nominal</th><th>Aksi</th><th>Hasil</th></tr></thead>
-      <tbody id="log"></tbody></table>
+    <section class="card s7">
+      <h2>Tes cepat<small>Ketuk untuk simulasi donasi. Tetap di dalam Valorant kalau dari HP/Mac.</small></h2>
+      <div id="tiers" class="list"><div class="empty">Memuat…</div></div>
+    </section>
+
+    <section class="card s5">
+      <h2>Simulasi donasi<small>Test mode, tanpa uang sungguhan.</small></h2>
+      <div class="list">
+        <div class="field"><label for="donor">Nama</label><input id="donor" value="Tester" autocomplete="off"></div>
+        <div class="field"><label for="amount">Nominal</label>
+          <input id="amount" type="number" value="2000" min="1" step="1000" inputmode="numeric"></div>
+        <div class="field"><label for="message">Pesan</label><input id="message" value="tes dari panel" autocomplete="off"></div>
+        <div class="field"><label for="did">ID donasi</label><input id="did" placeholder="otomatis" autocomplete="off"></div>
+      </div>
+      <button class="btn" onclick="send()">Kirim donasi tes</button>
+      <div id="out"></div>
+    </section>
+
+    <section class="card s7">
+      <h2>Aktivitas<small>Donasi terbaru di atas.</small></h2>
+      <div id="log" class="list log"><div class="empty">Belum ada aktivitas.</div></div>
+    </section>
   </div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
 let moneyFormat = "{amount} WHISKAS";
+let paused = true;
 const rp = n => moneyFormat.replace("{amount}", Number(n).toLocaleString("id-ID"));
 const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify(body || {}) }).then(r => r.json());
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls;
+                                 if (text != null) e.textContent = text; return e; };
 
-function ctl(what) { post("/api/" + what); }
+function ctl(what) { return post("/api/" + what); }
+$("toggle").onclick = () => ctl(paused ? "resume" : "pause");
 
 async function send(amount) {
   const res = await post("/api/test", { donor: $("donor").value, amount: amount || Number($("amount").value),
                                         message: $("message").value, id: $("did").value || undefined });
-  $("out").textContent = JSON.stringify(res);
+  $("out").textContent = res.status === "queued" ? `Masuk antrian #${res.position} · ${res.action}`
+    : res.status === "duplicate" ? "Diabaikan: ID donasi sama (anti-duplikat)"
+    : res.status === "below_min" ? "Di bawah tier minimum" : (res.error || JSON.stringify(res));
 }
 
 function showState(s) {
+  paused = s.paused;
   $("big").textContent = s.paused ? "PAUSED" : "ON";
-  $("big").className = s.paused ? "paused" : "on";
+  $("big").className = "state " + (s.paused ? "paused" : "on");
+  $("toggle").setAttribute("aria-checked", String(!s.paused));
+  $("pill").className = "pill " + (s.paused ? "paused" : "on");
+  $("pilltext").textContent = s.paused ? "Paused" : "Aktif";
   $("q").textContent = s.queue; $("cur").textContent = s.current || "-";
   $("fg").textContent = s.foreground || "-"; $("target").textContent = s.focus_process;
-  $("mode").textContent = s.dry_run ? "DRY-RUN (input tidak dikirim)" : "LIVE (input dikirim)";
+  $("mode").textContent = s.dry_run ? "Dry-run" : "Live";
   $("cfgpath").textContent = s.config_path || "-";
   const mw = s.mouse_actions || [];
   $("mousewarn").hidden = !mw.length;
-  $("mousewarn").textContent = mw.length ? "⚠️ Aksi ini masih pakai MOUSE (ditolak Valorant, error 87): " + mw.join(", ")
-    + ". Config yang dipakai bukan versi terbaru. Cek path Config di kotak Status." : "";
+  $("mousewarn").textContent = mw.length ? "Aksi ini masih pakai mouse (ditolak Valorant, error 87): " + mw.join(", ")
+    + ". Config yang dipakai bukan versi terbaru. Cek lokasi Config di kartu status." : "";
   $("cfgerr").hidden = !s.config_error;
   $("cfgerr").textContent = s.config_error
-    ? "⚠️ config.yaml ERROR, app masih pakai config LAMA: " + s.config_error + "  (betulkan lalu simpan lagi)" : "";
+    ? "config.yaml error, app masih pakai config lama: " + s.config_error + " (betulkan lalu simpan lagi)" : "";
+}
+
+function statusClass(result) {
+  if (/^ok/.test(result)) return "ok";
+  if (/^(masuk antrian|menunggu)/.test(result)) return "wait";
+  if (/^(error|dihentikan)/.test(result)) return "err";
+  return "skip";
 }
 
 function addLog(e, top = true) {
-  const tr = document.createElement("tr");
-  [e.time, e.platform, e.donor, rp(e.amount), e.action || "-", e.result].forEach(v => {
-    const td = document.createElement("td"); td.textContent = v; tr.appendChild(td);
-  });
-  const body = $("log");
-  top ? body.prepend(tr) : body.appendChild(tr);
-  while (body.children.length > 100) body.lastChild.remove();
+  const box = $("log");
+  box.querySelector(".empty")?.remove();
+  const row = el("div", "row");
+  const main = el("div", "main");
+  main.append(el("div", "title", `${e.donor} · ${rp(e.amount)}`),
+              el("div", "sub", `${e.action || "-"} — ${e.result}`),
+              el("div", "sub", e.platform));
+  row.append(el("span", "status " + statusClass(e.result)), main, el("span", "time", (e.time || "").slice(11)));
+  top ? box.prepend(row) : box.appendChild(row);
+  while (box.children.length > 100) box.lastChild.remove();
 }
 
 fetch("/api/config").then(r => r.json()).then(c => {
   moneyFormat = c.overlay.money_format || moneyFormat;
+  const tiers = $("tiers");
+  tiers.replaceChildren();
   c.actions.filter(a => a.enabled).forEach(a => {
-    const b = document.createElement("button");
-    b.textContent = rp(a.min_amount) + " · " + a.name;
-    const small = document.createElement("small"); small.textContent = a.inputs; b.appendChild(small);
+    const b = el("button", "row");
+    const main = el("div", "main");
+    main.append(el("div", "title", a.name), el("div", "sub", a.inputs));
+    b.append(el("span", "amt", rp(a.min_amount)), main, el("span", "chev", "›"));
     b.onclick = () => send(a.min_amount);
-    $("tiers").appendChild(b);
+    tiers.appendChild(b);
   });
+  if (!tiers.children.length) tiers.append(el("div", "empty", "Tidak ada aksi aktif di config.yaml."));
 });
 fetch("/api/log").then(r => r.json()).then(list => list.reverse().forEach(e => addLog(e, false)));
 const es = new EventSource("/events");
 es.addEventListener("state", e => showState(JSON.parse(e.data)));
 es.addEventListener("log", e => addLog(JSON.parse(e.data)));
-setInterval(() => fetch("/api/state").then(r => r.json()).then(showState).catch(() => {}), 2000);
+setInterval(() => fetch("/api/state").then(r => r.json()).then(showState).catch(() => {
+  $("pill").className = "pill"; $("pilltext").textContent = "Offline";
+}), 2000);
 </script>
 </body>
 </html>
