@@ -16,6 +16,7 @@ from pathlib import Path
 
 from aiohttp import web
 
+from .config import describe_steps
 from .engine import Donation
 from .platforms import parse_tako, parse_trakteer, tako_fill_gift, tako_signature_ok, trakteer_token_ok
 
@@ -163,7 +164,8 @@ def build_local_app(engine, store, hub: Hub, control_token: str) -> web.Applicat
         return web.json_response({
             "overlay": cfg["overlay"],
             "actions": [{"name": a["name"], "min_amount": a["min_amount"], "enabled": a["enabled"],
-                         "overlay_text": a["overlay_text"], "cooldown_s": a["cooldown_s"]}
+                         "overlay_text": a["overlay_text"], "cooldown_s": a["cooldown_s"],
+                         "inputs": describe_steps(a["steps"])}
                         for a in cfg["actions"]]})
 
     async def recent(_):

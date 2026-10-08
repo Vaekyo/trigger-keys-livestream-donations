@@ -28,11 +28,14 @@
   th { color: var(--muted); font-weight: 600; }
   .wide { grid-column: 1 / -1; overflow-x: auto; }
   #ctl button { flex: 1; padding: 16px; font-size: 18px; }
+  .banner { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: #5c1a1f; border: 1px solid var(--red); }
+  #tiers button { text-align: left; } #tiers small { display: block; font-weight: 400; color: #c5cfdd; margin-top: 2px; }
   #out { margin-top: 8px; color: var(--muted); font-size: 13px; min-height: 18px; }
 </style>
 </head>
 <body>
 <h1>Donation Controls: Panel Test</h1>
+<div id="cfgerr" class="banner" hidden></div>
 <div class="grid">
   <div class="card">
     <h2>Status</h2>
@@ -93,6 +96,9 @@ function showState(s) {
   $("q").textContent = s.queue; $("cur").textContent = s.current || "-";
   $("fg").textContent = s.foreground || "-"; $("target").textContent = s.focus_process;
   $("mode").textContent = s.dry_run ? "DRY-RUN (input tidak dikirim)" : "LIVE (input dikirim)";
+  $("cfgerr").hidden = !s.config_error;
+  $("cfgerr").textContent = s.config_error
+    ? "⚠️ config.yaml ERROR, app masih pakai config LAMA: " + s.config_error + "  (betulkan lalu simpan lagi)" : "";
 }
 
 function addLog(e, top = true) {
@@ -109,6 +115,7 @@ fetch("/api/config").then(r => r.json()).then(c => {
   c.actions.filter(a => a.enabled).forEach(a => {
     const b = document.createElement("button");
     b.textContent = rp(a.min_amount) + " · " + a.name;
+    const small = document.createElement("small"); small.textContent = a.inputs; b.appendChild(small);
     b.onclick = () => send(a.min_amount);
     $("tiers").appendChild(b);
   });

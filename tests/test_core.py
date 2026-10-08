@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from app.config import ConfigError, ConfigStore, match_action, validate
+from app.config import ConfigError, ConfigStore, describe_steps, match_action, validate
 from app.engine import Aborted, Donation, Engine, StepRunner
 from app.platforms import decode_channel_id, parse_amount, parse_tako, parse_trakteer, tako_signature_ok, trakteer_token_ok
 
@@ -73,6 +73,23 @@ class ConfigTests(unittest.TestCase):
         skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
         self.assertEqual(skill["steps"][-1], {"hold": {"key": "K", "ms": 150}})
         self.assertGreaterEqual(skill["steps"][1]["wait"], 800)   # wait for the ability to come out
+
+    def test_describe_steps(self):
+        skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
+        self.assertEqual(describe_steps(skill["steps"]), "C/Q/E → tunggu 0.9 dtk → tahan K")
+        self.assertIn("KLIK MOUSE", describe_steps([{"click": "LEFT"}]))
+
+    def test_broken_edit_keeps_old_config_and_reports_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.yaml"
+            path.write_text((ROOT / "config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+            store = ConfigStore(path)
+            text = path.read_text(encoding="utf-8").replace("hold: {key: K, ms: 150}", "click: K", 1)
+            path.write_text(text, encoding="utf-8")
+            import os
+            os.utime(path, (time.time() + 5, time.time() + 5))
+            self.assertEqual(len(store.get()["actions"]), 5)
+            self.assertIn("click harus LEFT atau RIGHT", store.error)
 
     def test_bad_key_rejected(self):
         with self.assertRaises(ConfigError):

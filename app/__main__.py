@@ -12,7 +12,7 @@ from pathlib import Path
 import aiohttp
 from aiohttp import web
 
-from .config import ConfigError, ConfigStore
+from .config import ConfigError, ConfigStore, describe_steps
 from .engine import Engine
 from .inputs import make_backend, start_hotkey_thread
 from .platforms import decode_channel_id, trakteer_ws_loop
@@ -133,6 +133,11 @@ async def main():
  Kill switch    : {hotkey if has_hotkey else 'TIDAK AKTIF (lihat error di atas)'}
  Status awal    : {'PAUSED (tekan ' + hotkey + ' / tombol di panel untuk ON)' if engine.paused else 'ON'}
 """)
+        print(" Aksi aktif (dari config.yaml):")
+        for a in cfg["actions"]:
+            if a["enabled"]:
+                print(f"   Rp{a['min_amount']:>7,}  {a['name']:<16} {describe_steps(a['steps'])}".replace(",", "."))
+        print()
         try:
             await asyncio.gather(*tasks)
         finally:

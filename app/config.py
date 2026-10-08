@@ -127,6 +127,30 @@ def validate(raw) -> dict:
     return cfg
 
 
+def describe_steps(steps) -> str:
+    """Human summary of an action's input, e.g. 'C/Q/E → tunggu 0.9 dtk → tahan K'."""
+    out = []
+    for step in steps:
+        (kind, arg), = step.items()
+        if kind == "tap":
+            out.append(" → ".join(arg))
+        elif kind == "random_tap":
+            out.append("/".join(arg))
+        elif kind == "click":
+            out.append(f"KLIK MOUSE {arg}")
+        elif kind == "hold":
+            out.append(f"tahan {arg['key']}" + (f" {arg['ms'] / 1000:g} dtk" if arg["ms"] >= 1000 else ""))
+        elif kind == "wait":
+            out.append(f"tunggu {arg / 1000:g} dtk")
+        elif kind == "spam":
+            out.append(f"{arg['key']} berulang {arg['ms'] / 1000:g} dtk")
+        elif kind in ("mouse", "jitter"):
+            out.append(f"GERAK MOUSE ({kind})")
+        elif kind == "chaos":
+            out.append(f"{arg['count']} aksi acak")
+    return " → ".join(out)
+
+
 def match_action(actions, amount):
     """Highest enabled tier whose min_amount <= amount (None if below every tier)."""
     best = None
@@ -145,6 +169,7 @@ class ConfigStore:
         self.path = Path(path)
         self._mtime = self.path.stat().st_mtime
         self._cfg = validate(yaml.safe_load(self.path.read_text(encoding="utf-8")))
+        self.error: str | None = None     # last reload error; shown as a warning in the panel
 
     def get(self) -> dict:
         try:
@@ -155,8 +180,10 @@ class ConfigStore:
             self._mtime = mtime
             try:
                 self._cfg = validate(yaml.safe_load(self.path.read_text(encoding="utf-8")))
+                self.error = None
                 log.info("config.yaml dimuat ulang")
             except (ConfigError, yaml.YAMLError) as e:
+                self.error = str(e)
                 log.error("config.yaml error, tetap pakai config lama: %s", e)
         return self._cfg
 

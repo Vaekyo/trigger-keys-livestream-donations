@@ -249,7 +249,8 @@ class Engine:
         fg = None if s["dry_run"] else self.backend.foreground_process()
         return {"paused": self.paused, "queue": self.queue.qsize(), "current": self.current,
                 "dry_run": s["dry_run"] or not self.backend.real,
-                "foreground": fg, "focus_process": s["focus_process"]}
+                "foreground": fg, "focus_process": s["focus_process"],
+                "config_error": self.store.error}
 
     # ---- control ----------------------------------------------------------
     def set_paused(self, paused: bool, source="api"):
