@@ -6,6 +6,8 @@ export interface TraceLaunch {
   categoryId?: ID;
   /** Re-open a part made in the studio. */
   editPartId?: ID;
+  /** Start a new drawing with an existing part as the reference image. */
+  referencePartId?: ID;
 }
 
 export const traceLaunchStore = createStore<TraceLaunch | null>(null);

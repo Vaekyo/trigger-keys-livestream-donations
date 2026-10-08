@@ -28,7 +28,7 @@ export function Btn({ icon, label, tip, onClick, variant = 'ghost', active, disa
       type={type}
       className={`btn btn-${variant}${active ? ' is-active' : ''}${small ? ' btn-sm' : ''}${label ? '' : ' btn-icon'} ${className}`}
       data-tip={tip}
-      aria-label={typeof label === 'string' ? undefined : tip}
+      aria-label={typeof label === 'string' ? label : tip}
       aria-pressed={active === undefined ? undefined : active}
       onClick={onClick}
       disabled={disabled}

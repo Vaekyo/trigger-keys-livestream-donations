@@ -367,6 +367,7 @@ function PartTile({ part, count, multiple }: { part: Part; count: number; multip
     { label: 'Edit name, tags & poses…', icon: 'tag', onClick: () => openDialog({ kind: 'part-details', partIds: [part.id] }) },
     { label: 'Adjust default alignment…', icon: 'move', onClick: () => openDialog({ kind: 'align', partId: part.id }) },
     ...(part.trace ? [{ label: 'Edit in trace studio…', icon: 'pen' as const, onClick: () => startTrace({ editPartId: part.id }) }] : []),
+    { label: 'Trace over this part…', icon: 'pen', onClick: () => startTrace({ referencePartId: part.id, categoryId: part.categoryId }) },
     { label: part.favorite ? 'Remove from favorites' : 'Add to favorites', icon: 'star', onClick: () => toggleFavorite(part.id) },
     ...(multiple ? [{ label: 'Add another copy', icon: 'plus' as const, onClick: () => addInstance(part.id) }] : []),
     { separator: true, label: '' },

@@ -53,9 +53,12 @@ export const SHORTCUTS: Shortcut[] = [
   { group: 'Canvas', keys: 'T / M / G', label: 'Toggle template guides / symmetry line / grid' },
   { group: 'Mix', keys: 'Shift+R', label: 'Randomize (locked categories stay)' },
   { group: 'Mix', keys: 'Shift+F', label: 'Surprise me (favorites only)' },
-  { group: 'Trace studio', keys: 'B / E / F / S', label: 'Pen / eraser / make fill / shade' },
+  { group: 'Trace studio', keys: 'B / E / F / W / S', label: 'Pen / eraser / make fill / fill brush / shade' },
+  { group: 'Trace studio', keys: 'V / H', label: 'Move reference / pan' },
   { group: 'Trace studio', keys: '[ / ]', label: 'Smaller / bigger brush' },
   { group: 'Trace studio', keys: 'X', label: 'Toggle mirror drawing' },
+  { group: 'Trace studio', keys: 'Ctrl+V', label: 'Paste an image as the reference' },
+  { group: 'Trace studio', keys: 'Ctrl+S', label: 'Save as part' },
 ];
 
 function isTyping(t: EventTarget | null): boolean {
@@ -99,6 +102,7 @@ export function useGlobalShortcuts() {
         return;
       }
       if (mod && (k === 's' || k === 'S')) {
+        if (ui.mode === 'trace') return; // trace studio: Ctrl+S = save as part
         e.preventDefault();
         void flush().then(() => toast('Saved'));
         return;

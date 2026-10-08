@@ -328,6 +328,7 @@ function ShareTab({ char }: { char: Character }) {
         onClick={() => {
           try {
             const { character, missing } = decodeShareCode(docStore.get(), input);
+            if (Object.values(docStore.get().characters).some((c) => !c.deletedAt && c.name === character.name)) character.name = `${character.name} (shared)`;
             docStore.commit('Load share code', (d) => ({ ...d, characters: { ...d.characters, [character.id]: character } }));
             openCharacter(character.id);
             closeDialog();

@@ -5,6 +5,7 @@ import { openDialog, toast, useUI } from '../../state/ui';
 import {
   addShape,
   applyExpression,
+  removeInstances,
   applyPalette,
   deleteExpression,
   moveExpression,
@@ -242,8 +243,24 @@ const PATTERNS: { value: PatternKind; label: string }[] = [
 
 function BackgroundSection({ bg }: { bg: BackgroundSpec }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const charId = useUI((s) => s.characterId);
+  const covering = useDoc((d) => {
+    const c = charId ? d.characters[charId] : undefined;
+    if (!c) return [] as string[];
+    const bgCats = new Set(d.project.categories.filter((x) => x.isBackground).map((x) => x.id));
+    return c.items.filter((i) => !i.hidden && !i.shape && bgCats.has(d.parts[i.partId]?.categoryId ?? '')).map((i) => i.id).join('|');
+  });
+  const coverIds = typeof covering === 'string' && covering ? covering.split('|') : [];
   return (
     <Section title="Background" collapsible defaultOpen={false} tour="background">
+      {bg.type !== 'none' && coverIds.length > 0 && (
+        <p className="warn small">
+          A background part from the library is drawn on top of this.{' '}
+          <button type="button" className="link" onClick={() => removeInstances(coverIds)}>
+            Remove it
+          </button>
+        </p>
+      )}
       <Segmented
         tip="Background type (drawn behind every part)"
         value={bg.type}
