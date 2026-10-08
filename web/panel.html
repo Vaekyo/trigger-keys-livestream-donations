@@ -102,6 +102,7 @@
   .field input { flex: 1; min-width: 0; padding: 10px 0; border: 0; outline: 0; background: none;
                  color: var(--text); font: inherit; text-align: right; }
   .field input::placeholder { color: var(--faint); }
+  .unit { flex: none; color: var(--muted); font-size: 14px; }
   .btn { display: block; width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 14px; cursor: pointer;
          background: var(--blue); color: #fff; font: inherit; font-weight: 600; font-size: 16px; transition: transform .1s, filter .15s; }
   .btn:hover { filter: brightness(1.08); } .btn:active { transform: scale(.98); }
@@ -157,7 +158,8 @@
       <div class="list">
         <div class="field"><label for="donor">Nama</label><input id="donor" value="Tester" autocomplete="off"></div>
         <div class="field"><label for="amount">Nominal</label>
-          <input id="amount" type="number" value="2000" min="1" step="1000" inputmode="numeric"></div>
+          <input id="amount" type="number" value="2" min="0" step="1" inputmode="decimal">
+          <span id="amountUnit" class="unit">WHISKAS</span></div>
         <div class="field"><label for="message">Pesan</label><input id="message" value="tes dari panel" autocomplete="off"></div>
         <div class="field"><label for="did">ID donasi</label><input id="did" placeholder="otomatis" autocomplete="off"></div>
       </div>
@@ -175,17 +177,21 @@
 const $ = id => document.getElementById(id);
 let moneyFormat = "{amount} WHISKAS";
 let paused = true;
-const rp = n => moneyFormat.replace("{amount}", Number(n).toLocaleString("id-ID"));
+let moneyDivisor = 1000;
+const rp = n => moneyFormat.replace("{amount}",
+  (Number(n) / moneyDivisor).toLocaleString("id-ID", { maximumFractionDigits: 1 }));
 const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify(body || {}) }).then(r => r.json());
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls;
                                  if (text != null) e.textContent = text; return e; };
 
 function ctl(what) { return post("/api/" + what); }
+// The form takes WHISKAS (e.g. 6); the API takes Rupiah (6000). Tier buttons already send Rupiah.
+const formAmount = () => Math.round(Number($("amount").value) * moneyDivisor);
 $("toggle").onclick = () => ctl(paused ? "resume" : "pause");
 
 async function send(amount) {
-  const res = await post("/api/test", { donor: $("donor").value, amount: amount || Number($("amount").value),
+  const res = await post("/api/test", { donor: $("donor").value, amount: amount || formAmount(),
                                         message: $("message").value, id: $("did").value || undefined });
   $("out").textContent = res.status === "queued" ? `Masuk antrian #${res.position} · ${res.action}`
     : res.status === "duplicate" ? "Diabaikan: ID donasi sama (anti-duplikat)"
@@ -234,6 +240,8 @@ function addLog(e, top = true) {
 
 fetch("/api/config").then(r => r.json()).then(c => {
   moneyFormat = c.overlay.money_format || moneyFormat;
+  moneyDivisor = c.overlay.money_divisor || 1;
+  $("amountUnit").textContent = moneyFormat.replace("{amount}", "").trim() || "Rp";
   const tiers = $("tiers");
   tiers.replaceChildren();
   c.actions.filter(a => a.enabled).forEach(a => {

@@ -194,8 +194,9 @@ Skill/ult dipakai lewat tombol K (keyboard), karena Valorant menolak klik mouse 
     - hold: {key: K, ms: 150} # pakai skill (Fire kedua)
 ```
 
-Tampilan nominal diatur di `overlay.money_format` (default `"{amount} WHISKAS"` → "6.000 WHISKAS";
-ganti ke `"Rp{amount}"` kalau mau Rupiah lagi). `min_amount` tetap angka Rupiah dari Tako/Trakteer.
+Tampilan nominal: **1 WHISKAS = Rp1.000**, jadi Rp6.000 tampil "6 WHISKAS" (`overlay.money_divisor: 1000`,
+`overlay.money_format: "{amount} WHISKAS"`). Untuk Rupiah lagi: `money_divisor: 1` dan `money_format: "Rp{amount}"`.
+`min_amount` di config tetap angka Rupiah dari Tako/Trakteer. Di panel, kolom Nominal diisi dalam WHISKAS (mis. 6).
 
 Angka `wait`/`ms` dalam **milidetik** (1000 = 1 detik). Kalau skill belum sempat keluar saat K ditekan,
 naikkan `wait` (mis. 1200). Kolom **Hasil** di log panel menunjukkan tombol yang benar-benar dikirim,

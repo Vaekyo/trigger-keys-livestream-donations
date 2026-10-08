@@ -24,11 +24,14 @@
 </div>
 <script>
 let moneyFormat = "{amount} WHISKAS";
-const rp = n => moneyFormat.replace("{amount}", Number(n).toLocaleString("id-ID"));
+let moneyDivisor = 1000;
+const rp = n => moneyFormat.replace("{amount}",
+  (Number(n) / moneyDivisor).toLocaleString("id-ID", { maximumFractionDigits: 1 }));
 async function load() {
   try {
     const cfg = await (await fetch("/api/config")).json();
     moneyFormat = cfg.overlay.money_format || moneyFormat;
+    moneyDivisor = cfg.overlay.money_divisor || 1;
     const list = document.getElementById("list");
     list.replaceChildren(...cfg.actions.filter(a => a.enabled).map(a => {
       const li = document.createElement("li");

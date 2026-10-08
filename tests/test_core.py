@@ -75,7 +75,12 @@ class ConfigTests(unittest.TestCase):
         self.assertGreaterEqual(skill["steps"][1]["wait"], 800)   # wait for the ability to come out
 
     def test_money_is_whiskas(self):
-        self.assertEqual(money(self.cfg, 6000), "6.000 WHISKAS")
+        self.assertEqual(money(self.cfg, 6000), "6 WHISKAS")
+        self.assertEqual(money(self.cfg, 10000), "10 WHISKAS")
+        self.assertEqual(money(self.cfg, 2500), "2,5 WHISKAS")
+        self.assertEqual(money(self.cfg, 1500000), "1.500 WHISKAS")
+        rupiah = dict(self.cfg, overlay=dict(self.cfg["overlay"], money_divisor=1, money_format="Rp{amount}"))
+        self.assertEqual(money(rupiah, 6000), "Rp6.000")
         self.assertNotIn("Rp", self.cfg["overlay"]["template"])
 
     def test_describe_steps(self):

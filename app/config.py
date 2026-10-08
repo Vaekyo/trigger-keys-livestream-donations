@@ -27,7 +27,7 @@ SAFETY_DEFAULTS = {
 }
 SERVER_DEFAULTS = {"panel_port": 8787, "webhook_port": 8788, "allow_lan": False}
 OVERLAY_DEFAULTS = {"template": "{donor} donated {amount} → {action}!", "duration_s": 6,
-                    "money_format": "{amount} WHISKAS",
+                    "money_format": "{amount} WHISKAS", "money_divisor": 1000,
                     "default_sound": None}
 
 
@@ -93,6 +93,7 @@ def validate(raw) -> dict:
         "server": {**SERVER_DEFAULTS, **(raw.get("server") or {})},
         "overlay": {**OVERLAY_DEFAULTS, **(raw.get("overlay") or {})},
     }
+    _num(cfg["overlay"]["money_divisor"], "overlay.money_divisor", 1)
     s = cfg["safety"]
     for k in ("gap_between_actions_s", "max_hold_s", "max_action_s", "max_queue_age_s"):
         _num(s[k], f"safety.{k}")
@@ -153,8 +154,10 @@ def describe_steps(steps) -> str:
 
 
 def money(cfg, amount) -> str:
-    """6000 -> '6.000 WHISKAS' (format from overlay.money_format)."""
-    number = f"{int(amount):,}".replace(",", ".")
+    """Rp6000 -> '6 WHISKAS' (amount / overlay.money_divisor, shown with overlay.money_format)."""
+    value = round(amount / (cfg["overlay"]["money_divisor"] or 1), 1)
+    whole, _, frac = f"{value:,.1f}".partition(".")
+    number = whole.replace(",", ".") + ("" if frac == "0" else "," + frac)   # 2.5 -> "2,5", 12000 -> "12.000"
     return str(cfg["overlay"]["money_format"]).replace("{amount}", number)
 
 
