@@ -15,7 +15,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import match_action
+from .config import match_action, money
 from .inputs import DryRunInput
 
 log = logging.getLogger("engine")
@@ -62,10 +62,6 @@ def _summarize(keys: list[str]) -> str:
         else:
             parts.append([k, 1])
     return " → ".join(k if n == 1 else f"{k} ×{n}" for k, n in parts)
-
-
-def rupiah(amount: int) -> str:
-    return f"{int(amount):,}".replace(",", ".")
 
 
 class Aborted(Exception):
@@ -241,7 +237,8 @@ class Engine:
         with self.events_file.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.recent_log.append(entry)
-        log.info("[%s] %s Rp%s -> %s : %s", d.platform, d.donor, rupiah(d.amount), action or "-", result)
+        log.info("[%s] %s %s -> %s : %s", d.platform, d.donor, money(self.store.get(), d.amount),
+                 action or "-", result)
         self.emit("log", entry)
 
     def state(self) -> dict:
@@ -250,7 +247,9 @@ class Engine:
         return {"paused": self.paused, "queue": self.queue.qsize(), "current": self.current,
                 "dry_run": s["dry_run"] or not self.backend.real,
                 "foreground": fg, "focus_process": s["focus_process"],
-                "config_error": self.store.error}
+                "config_error": self.store.error, "config_path": str(self.store.path),
+                "mouse_actions": [a["name"] for a in self.store.get()["actions"] if a["enabled"] and any(
+                    k in st for st in a["steps"] for k in ("click", "mouse", "jitter"))]}
 
     # ---- control ----------------------------------------------------------
     def set_paused(self, paused: bool, source="api"):
@@ -404,7 +403,7 @@ class Engine:
         self.record(d, log_name, result)
 
     def _alert(self, d, action, cfg, label=None, skipped=False):
-        return {"donor": d.donor, "amount": d.amount, "amount_text": rupiah(d.amount),
+        return {"donor": d.donor, "amount": d.amount, "amount_text": money(cfg, d.amount),
                 "platform": d.platform, "message": d.message, "action": label or action["overlay_text"],
                 "action_name": action["name"], "skipped": skipped,
                 "sound": action["sound"] or cfg["overlay"]["default_sound"]}

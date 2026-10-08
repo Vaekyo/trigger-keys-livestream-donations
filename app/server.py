@@ -163,6 +163,7 @@ def build_local_app(engine, store, hub: Hub, control_token: str) -> web.Applicat
         cfg = store.get()
         return web.json_response({
             "overlay": cfg["overlay"],
+            "config_path": str(store.path),
             "actions": [{"name": a["name"], "min_amount": a["min_amount"], "enabled": a["enabled"],
                          "overlay_text": a["overlay_text"], "cooldown_s": a["cooldown_s"],
                          "inputs": describe_steps(a["steps"])}

@@ -23,10 +23,12 @@
   <ul id="list"></ul>
 </div>
 <script>
-const rp = n => "Rp" + Number(n).toLocaleString("id-ID");
+let moneyFormat = "{amount} WHISKAS";
+const rp = n => moneyFormat.replace("{amount}", Number(n).toLocaleString("id-ID"));
 async function load() {
   try {
     const cfg = await (await fetch("/api/config")).json();
+    moneyFormat = cfg.overlay.money_format || moneyFormat;
     const list = document.getElementById("list");
     list.replaceChildren(...cfg.actions.filter(a => a.enabled).map(a => {
       const li = document.createElement("li");

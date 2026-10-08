@@ -36,6 +36,7 @@
 <body>
 <h1>Donation Controls: Panel Test</h1>
 <div id="cfgerr" class="banner" hidden></div>
+<div id="mousewarn" class="banner" hidden></div>
 <div class="grid">
   <div class="card">
     <h2>Status</h2>
@@ -49,14 +50,15 @@
       Aksi sekarang: <b id="cur">-</b><br>
       Jendela aktif: <b id="fg">-</b><br>
       Target fokus: <b id="target">-</b><br>
-      Mode: <b id="mode">-</b>
+      Mode: <b id="mode">-</b><br>
+      Config: <b id="cfgpath" style="word-break: break-all">-</b>
     </div>
   </div>
 
   <div class="card">
     <h2>Simulasi donasi (TEST MODE, tanpa uang)</h2>
     <label>Nama donatur</label><input id="donor" value="Tester">
-    <label>Nominal (Rp)</label><input id="amount" type="number" value="2000" min="1" step="1000">
+    <label>Nominal (angka saja, mis. 6000)</label><input id="amount" type="number" value="2000" min="1" step="1000">
     <label>Pesan</label><input id="message" value="tes dari panel">
     <label>ID donasi (opsional, isi sama 2x untuk tes anti-duplikat)</label><input id="did" placeholder="otomatis">
     <div class="row"><button class="green" onclick="send()">Kirim donasi tes</button></div>
@@ -78,7 +80,8 @@
 </div>
 <script>
 const $ = id => document.getElementById(id);
-const rp = n => "Rp" + Number(n).toLocaleString("id-ID");
+let moneyFormat = "{amount} WHISKAS";
+const rp = n => moneyFormat.replace("{amount}", Number(n).toLocaleString("id-ID"));
 const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
                                           body: JSON.stringify(body || {}) }).then(r => r.json());
 
@@ -96,6 +99,11 @@ function showState(s) {
   $("q").textContent = s.queue; $("cur").textContent = s.current || "-";
   $("fg").textContent = s.foreground || "-"; $("target").textContent = s.focus_process;
   $("mode").textContent = s.dry_run ? "DRY-RUN (input tidak dikirim)" : "LIVE (input dikirim)";
+  $("cfgpath").textContent = s.config_path || "-";
+  const mw = s.mouse_actions || [];
+  $("mousewarn").hidden = !mw.length;
+  $("mousewarn").textContent = mw.length ? "⚠️ Aksi ini masih pakai MOUSE (ditolak Valorant, error 87): " + mw.join(", ")
+    + ". Config yang dipakai bukan versi terbaru. Cek path Config di kotak Status." : "";
   $("cfgerr").hidden = !s.config_error;
   $("cfgerr").textContent = s.config_error
     ? "⚠️ config.yaml ERROR, app masih pakai config LAMA: " + s.config_error + "  (betulkan lalu simpan lagi)" : "";
@@ -112,6 +120,7 @@ function addLog(e, top = true) {
 }
 
 fetch("/api/config").then(r => r.json()).then(c => {
+  moneyFormat = c.overlay.money_format || moneyFormat;
   c.actions.filter(a => a.enabled).forEach(a => {
     const b = document.createElement("button");
     b.textContent = rp(a.min_amount) + " · " + a.name;

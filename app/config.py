@@ -26,7 +26,8 @@ SAFETY_DEFAULTS = {
     "tap_ms": 40,
 }
 SERVER_DEFAULTS = {"panel_port": 8787, "webhook_port": 8788, "allow_lan": False}
-OVERLAY_DEFAULTS = {"template": "{donor} donated Rp{amount} → {action}!", "duration_s": 6,
+OVERLAY_DEFAULTS = {"template": "{donor} donated {amount} → {action}!", "duration_s": 6,
+                    "money_format": "{amount} WHISKAS",
                     "default_sound": None}
 
 
@@ -149,6 +150,12 @@ def describe_steps(steps) -> str:
         elif kind == "chaos":
             out.append(f"{arg['count']} aksi acak")
     return " → ".join(out)
+
+
+def money(cfg, amount) -> str:
+    """6000 -> '6.000 WHISKAS' (format from overlay.money_format)."""
+    number = f"{int(amount):,}".replace(",", ".")
+    return str(cfg["overlay"]["money_format"]).replace("{amount}", number)
 
 
 def match_action(actions, amount):

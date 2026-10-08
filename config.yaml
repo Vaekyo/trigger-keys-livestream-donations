@@ -25,12 +25,13 @@ server:
   allow_lan: true               # true = panel bisa dibuka dari HP/MacBook di WiFi yang sama (pakai token)
 
 overlay:
-  template: "{donor} donated Rp{amount} → {action}!"
+  template: "{donor} donated {amount} → {action}!"
+  money_format: "{amount} WHISKAS"   # cara nominal ditampilkan, mis. "6.000 WHISKAS" (atau "Rp{amount}")
   duration_s: 6
   default_sound: null           # contoh: /sounds/alert.mp3 (taruh file di folder sounds/)
 
 # ---------------------------------------------------------------------
-#  AKSI. Tier kelipatan Rp2.000. Dipilih tier TERTINGGI yang min_amount <= nominal.
+#  AKSI. Tier kelipatan 2.000 (min_amount tetap dalam Rupiah dari Tako/Trakteer). Dipilih tier TERTINGGI yang min_amount <= nominal.
 #  Tidak ada cooldown: semua donasi masuk ANTRIAN dan dijalankan satu per satu.
 #  Keybind = default Valorant. Ganti kalau bind kamu beda.
 #

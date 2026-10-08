@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from app.config import ConfigError, ConfigStore, describe_steps, match_action, validate
+from app.config import ConfigError, ConfigStore, describe_steps, match_action, money, validate
 from app.engine import Aborted, Donation, Engine, StepRunner
 from app.platforms import decode_channel_id, parse_amount, parse_tako, parse_trakteer, tako_signature_ok, trakteer_token_ok
 
@@ -73,6 +73,10 @@ class ConfigTests(unittest.TestCase):
         skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
         self.assertEqual(skill["steps"][-1], {"hold": {"key": "K", "ms": 150}})
         self.assertGreaterEqual(skill["steps"][1]["wait"], 800)   # wait for the ability to come out
+
+    def test_money_is_whiskas(self):
+        self.assertEqual(money(self.cfg, 6000), "6.000 WHISKAS")
+        self.assertNotIn("Rp", self.cfg["overlay"]["template"])
 
     def test_describe_steps(self):
         skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
@@ -240,6 +244,9 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(self.engine.queue.join(), 5)
         result = self.engine.recent_log[-1]["result"]
         self.assertRegex(result, r"^ok \| tombol: [CQE] → K$")
+
+    async def test_state_flags_mouse_actions(self):
+        self.assertEqual(self.engine.state()["mouse_actions"], [])
 
     async def test_paused_donation_expires_without_input(self):
         self.engine.set_paused(True)

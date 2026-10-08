@@ -39,7 +39,7 @@ const badge = document.getElementById("badge");
 const box = document.getElementById("alert");
 if (params.get("badge") === "0") badge.style.display = "none";
 const showAlerts = params.get("alerts") !== "0";
-let template = "{donor} donated Rp{amount} → {action}!", duration = 6;
+let template = "{donor} donated {amount} → {action}!", duration = 6;
 fetch("/api/config").then(r => r.json()).then(c => { template = c.overlay.template; duration = c.overlay.duration_s; });
 
 // Builds the line with textContent only (donor names / messages are untrusted).
