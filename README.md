@@ -190,9 +190,13 @@ Skill/ult dipakai lewat tombol K (keyboard), karena Valorant menolak klik mouse 
   sound: /sounds/skill.mp3
   steps:
     - random_tap: [C, Q, E]   # pilih skill
-    - wait: 250               # tunggu skill siap
-    - tap: K                  # pakai skill (Fire kedua)
+    - wait: 900               # tunggu animasi skill keluar (ms; 1000 = 1 detik)
+    - hold: {key: K, ms: 150} # pakai skill (Fire kedua)
 ```
+
+Angka `wait`/`ms` dalam **milidetik** (1000 = 1 detik). Kalau skill belum sempat keluar saat K ditekan,
+naikkan `wait` (mis. 1200). Kolom **Hasil** di log panel menunjukkan tombol yang benar-benar dikirim,
+contoh `ok | tombol: Q → K`.
 
 Step: `tap`, `random_tap`, `click`, `hold`, `spam`, `wait`, `mouse`, `jitter`. Penjelasannya ada di bagian atas `config.yaml`.
 Keybind bawaan = default Valorant (Space, Ctrl, C/Q/E, G, X). Ganti kalau bind kamu beda.
@@ -267,7 +271,7 @@ tests/              unit test (python -m unittest discover tests)
 | Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
 | Trakteer webhook 403 / error 1003 | Webhook URL masih `127.0.0.1`. Pakai alamat ngrok, atau pindah ke mode websocket. |
 | `SendInput gagal (error 87)` di aksi mouse | Valorant menolak mouse buatan. Pakai step keyboard (`tap`), bukan `click`/`mouse`/`jitter`. |
-| Skill cuma terpilih, tidak terpakai | Belum set Fire kedua = `K` di Valorant (Settings → Controls → Combat → Fire). |
+| Skill cuma terpilih, tidak terpakai | 1) Fire kedua = `K` sudah di-set di Valorant? Tes tekan K manual. 2) Naikkan `wait` sebelum K (mis. 1200). |
 | Panel tidak bisa dibuka dari HP | WiFi sama? Link lengkap dengan `?token=`? Firewall Windows mengizinkan Python (Private)? |
 
 ## Sumber riset

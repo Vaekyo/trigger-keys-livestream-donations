@@ -53,6 +53,17 @@ def release(backend, key):
         backend.key_up(key)
 
 
+def _summarize(keys: list[str]) -> str:
+    """['C', 'K'] -> 'C → K';  ['LCTRL'] * 20 -> 'LCTRL ×20'."""
+    parts: list[list] = []
+    for k in keys:
+        if parts and parts[-1][0] == k:
+            parts[-1][1] += 1
+        else:
+            parts.append([k, 1])
+    return " → ".join(k if n == 1 else f"{k} ×{n}" for k, n in parts)
+
+
 def rupiah(amount: int) -> str:
     return f"{int(amount):,}".replace(",", ".")
 
@@ -68,6 +79,7 @@ class StepRunner:
     def __init__(self, backend, safety, cancel: threading.Event, deadline: float):
         self.b, self.s, self.cancel, self.deadline = backend, safety, cancel, deadline
         self.held: set[str] = set()
+        self.sent: list[str] = []      # keys/buttons pressed, shown in the log
 
     def run(self, steps):
         try:
@@ -99,6 +111,7 @@ class StepRunner:
     def _down(self, key):
         self.held.add(key)
         self.b.key_down(key)
+        self.sent.append(key)
 
     def _up(self, key):
         self.b.key_up(key)
@@ -107,6 +120,7 @@ class StepRunner:
     def _click(self, button):
         self.b.mouse_button(button, True)
         self.held.add("MOUSE_" + button)
+        self.sent.append("MOUSE_" + button)
         try:
             self.sleep(self.s["tap_ms"] / 1000)
         finally:
@@ -384,6 +398,8 @@ class Engine:
             self.last_end = now
             self.last_used[action["name"]] = now
             self.recent.append(now)
+        if runner.sent:
+            result += " | tombol: " + _summarize(runner.sent)
         self.record(d, log_name, result)
 
     def _alert(self, d, action, cfg, label=None, skipped=False):

@@ -71,7 +71,8 @@ class ConfigTests(unittest.TestCase):
             kinds = [next(iter(st)) for st in a["steps"]]
             self.assertFalse({"click", "mouse", "jitter"} & set(kinds), a["name"])
         skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
-        self.assertEqual(skill["steps"][-1], {"tap": ["K"]})
+        self.assertEqual(skill["steps"][-1], {"hold": {"key": "K", "ms": 150}})
+        self.assertGreaterEqual(skill["steps"][1]["wait"], 800)   # wait for the ability to come out
 
     def test_bad_key_rejected(self):
         with self.assertRaises(ConfigError):
@@ -216,6 +217,12 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(self.engine.queue.join(), 5)
         presses = [e[1] for e in self.fake.events if e[0] == "down"]
         self.assertEqual(presses, ["SPACE", "G", "SPACE"])
+
+    async def test_log_shows_keys_sent(self):
+        self.engine.submit(Donation("test", "k1", "A", 6000))
+        await asyncio.wait_for(self.engine.queue.join(), 5)
+        result = self.engine.recent_log[-1]["result"]
+        self.assertRegex(result, r"^ok \| tombol: [CQE] → K$")
 
     async def test_paused_donation_expires_without_input(self):
         self.engine.set_paused(True)

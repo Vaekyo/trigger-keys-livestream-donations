@@ -40,7 +40,7 @@ overlay:
 #    - click: LEFT                      klik mouse (LEFT / RIGHT), untuk konfirmasi skill
 #    - hold: {key: SHIFT, ms: 10000}    tahan tombol
 #    - spam: {key: CTRL, ms: 3000, every: 150}   tekan berulang
-#    - wait: 200                        tunggu (ms)
+#    - wait: 900                        tunggu (ms; 1000 = 1 detik)
 #    - mouse: {dx: 12857, dy: 0, ms: 600}        gerak mouse relatif
 #    - jitter: {ms: 5000, strength: 40, every: 25}  goyang acak, balik ke posisi awal
 #  Tombol: A-Z, 0-9, SPACE, CTRL, SHIFT, ALT, TAB, ESC, ENTER, F1-F12, UP/DOWN/LEFT/RIGHT, dll.
@@ -72,8 +72,8 @@ actions:
     sound: null
     steps:
       - random_tap: [C, Q, E]   # pilih skill
-      - wait: 250               # tunggu skill siap
-      - tap: K                  # pakai skill (K = tombol Fire kedua di Valorant)
+      - wait: 900               # tunggu animasi skill keluar (ms; 1000 = 1 detik)
+      - hold: {key: K, ms: 150} # pakai skill (K = tombol Fire kedua di Valorant)
 
   - name: Drop weapon
     min_amount: 8000
@@ -90,5 +90,5 @@ actions:
     sound: null
     steps:
       - tap: X
-      - wait: 400
-      - tap: K                  # pakai ult (K = tombol Fire kedua)
+      - wait: 1200              # tunggu animasi ult keluar (ms)
+      - hold: {key: K, ms: 150} # pakai ult (K = tombol Fire kedua)
