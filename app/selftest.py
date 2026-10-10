@@ -1,10 +1,10 @@
-"""Check whether Windows accepts the app's keyboard + mouse input, OUTSIDE the game.
+"""Check which inputs Windows accepts from the app, OUTSIDE the game.
 
-  selftest.bat   (close Valorant first)
+  selftest.bat   (close Valorant first, open Notepad and click into it during the countdown)
 
-Moves the mouse in a small square and taps SHIFT. If this works on the desktop but
-mouse actions fail in Valorant (error 87), Valorant/Vanguard is blocking injected mouse
-input. That is not worked around: use the keyboard Fire bind for abilities instead.
+Replays the skill sequence (Q, wait, hold K) key by key, then a small mouse move, and prints
+OK / FAILED for every single press and release. If this all works in Notepad but fails in
+Valorant, the game/Vanguard is rejecting injected input. That is not worked around.
 """
 import sys
 import time
@@ -16,29 +16,41 @@ def main():
     if not IS_WINDOWS:
         sys.exit("Self-test hanya untuk Windows.")
     b = make_backend()
-    print("Self-test mulai 3 detik lagi. Lepas mouse & keyboard, jangan buka Valorant.")
-    time.sleep(3)
-    results = {}
-    try:
-        b.key_down("LSHIFT")
-        time.sleep(0.05)
-        b.key_up("LSHIFT")
-        results["Keyboard"] = "OK"
-    except OSError as e:
-        results["Keyboard"] = f"GAGAL: {e}"
-    try:
-        for dx, dy in ((80, 0), (0, 80), (-80, 0), (0, -80)):
-            for _ in range(8):
-                b.mouse_move(dx // 8, dy // 8)
-                time.sleep(0.02)
-        results["Gerak mouse"] = "OK (kursor harus bergerak membentuk kotak kecil)"
-    except OSError as e:
-        results["Gerak mouse"] = f"GAGAL: {e}"
-    print()
-    for name, res in results.items():
-        print(f"  {name:12}: {res}")
-    print("\nKalau semua OK di sini tapi mouse gagal di Valorant, berarti Valorant memblokir mouse buatan.")
-    print("Skill: pakai tombol Fire kedua (lihat config.yaml). Spin & Drunk aim: matikan (enabled: false).")
+    print("Buka Notepad, lalu KLIK ke dalam Notepad sekarang. Tes mulai 5 detik lagi...")
+    for i in range(5, 0, -1):
+        print(f"  {i}...")
+        time.sleep(1)
+    print(f"Jendela aktif: {b.foreground_process()}\n")
+
+    results = []
+
+    def attempt(label, fn):
+        try:
+            fn()
+            results.append((label, "OK"))
+        except OSError as e:
+            results.append((label, f"GAGAL: {e}"))
+
+    # Same order and timing as the "Random skill" action.
+    attempt("Q tekan", lambda: b.key_down("Q"))
+    time.sleep(0.04)
+    attempt("Q lepas", lambda: b.key_up("Q"))
+    time.sleep(0.9)
+    attempt("K tekan", lambda: b.key_down("K"))
+    time.sleep(0.15)
+    attempt("K lepas", lambda: b.key_up("K"))
+    time.sleep(0.2)
+    attempt("SPACE tekan", lambda: b.key_down("SPACE"))
+    time.sleep(0.04)
+    attempt("SPACE lepas", lambda: b.key_up("SPACE"))
+    time.sleep(0.2)
+    attempt("Mouse gerak", lambda: [b.mouse_move(10, 0), b.mouse_move(-10, 0)])
+
+    print("Hasil:")
+    for label, res in results:
+        print(f"  {label:12}: {res}")
+    print("\nDi Notepad harus muncul huruf 'qk' dan satu spasi.")
+    print("Kirim screenshot jendela ini ke developer.")
 
 
 if __name__ == "__main__":

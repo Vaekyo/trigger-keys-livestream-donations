@@ -6,6 +6,7 @@ import logging
 import os
 import secrets
 import socket
+import struct
 import sys
 from pathlib import Path
 
@@ -134,6 +135,7 @@ async def main():
  Status awal    : {'PAUSED (tekan ' + hotkey + ' / tombol di panel untuk ON)' if engine.paused else 'ON'}
 """)
         print(f" Config dipakai : {store.path}")
+        print(f" Python         : {sys.version.split()[0]} ({8 * struct.calcsize('P')}-bit)")
         print(" Aksi aktif:")
         for a in cfg["actions"]:
             if a["enabled"]:

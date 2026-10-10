@@ -80,14 +80,14 @@ if IS_WINDOWS:
     kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
                                                     wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
 
-    def _send(inp):
+    def _send(inp, what):
+        """what: human description for errors, e.g. 'keyboard K tekan' or 'mouse LEFT lepas'."""
         if user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) != 1:
             err = ctypes.get_last_error()
-            hint = ""
-            if inp.type == INPUT_MOUSE:
-                hint = (" - input MOUSE ditolak. Jalankan selftest.bat dengan Valorant DITUTUP: kalau di desktop "
-                        "berhasil, berarti Valorant/Vanguard yang memblokir mouse buatan (jangan diakali).")
-            raise OSError(f"SendInput gagal (error {err}){hint}")
+            fg = WindowsInput().foreground_process() or "?"
+            raise OSError(f"SendInput gagal (error {err}) saat {what} | jendela aktif: {fg} | "
+                          f"INPUT={ctypes.sizeof(INPUT)}B type={inp.type} Python {sys.version.split()[0]} "
+                          f"{8 * ctypes.sizeof(ctypes.c_void_p)}-bit")
 
     class WindowsInput:
         real = True
@@ -97,7 +97,7 @@ if IS_WINDOWS:
             flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if up else 0) | (KEYEVENTF_EXTENDEDKEY if extended else 0)
             inp = INPUT(type=INPUT_KEYBOARD)
             inp.ki = KEYBDINPUT(0, scan, flags, 0, 0)
-            _send(inp)
+            _send(inp, f"keyboard {key} {'lepas' if up else 'tekan'}")
 
         def key_down(self, key):
             self._key(key, False)
@@ -108,12 +108,12 @@ if IS_WINDOWS:
         def mouse_move(self, dx, dy):
             inp = INPUT(type=INPUT_MOUSE)
             inp.mi = MOUSEINPUT(int(dx), int(dy), 0, MOUSEEVENTF_MOVE, 0, 0)
-            _send(inp)
+            _send(inp, "mouse gerak")
 
         def mouse_button(self, button, down):
             inp = INPUT(type=INPUT_MOUSE)
             inp.mi = MOUSEINPUT(0, 0, 0, MOUSE_BUTTON_FLAGS[(button, down)], 0, 0)
-            _send(inp)
+            _send(inp, f"mouse {button} {'tekan' if down else 'lepas'}")
 
         def foreground_process(self):
             """File name of the process that owns the focused window, e.g. 'VALORANT-Win64-Shipping.exe'."""
