@@ -18,7 +18,7 @@ safety:
   when_unfocused: wait          # wait = tunggu sampai Valorant fokus lagi, skip = langsung lewati
   dry_run: false                # true = tidak kirim input sama sekali (cuma log + overlay)
   tap_ms: 40                    # lama 1 kali "tap" tombol
-  fire_key: K                   # "click: LEFT" otomatis jadi tombol ini (Valorant menolak klik mouse buatan).
+  fire_key: K                   # "click: LEFT" otomatis jadi tombol ini (keyboard, bukan klik mouse).
                                 # Set juga di Valorant: Settings > Controls > Combat > Fire > tombol kedua = K
 
 server:
@@ -50,7 +50,7 @@ overlay:
 #  Tombol: A-Z, 0-9, SPACE, CTRL, SHIFT, ALT, TAB, ESC, ENTER, F1-F12, UP/DOWN/LEFT/RIGHT, dll.
 #
 #  WAJIB: di Valorant, Settings > Controls > Combat > Fire, isi tombol KEDUA = K.
-#  Skill & ult dipakai dengan menekan K (keyboard), karena Valorant menolak klik mouse buatan.
+#  Skill & ult dipakai dengan menekan K (keyboard), bukan klik mouse.
 # ---------------------------------------------------------------------
 actions:
   - name: Jump

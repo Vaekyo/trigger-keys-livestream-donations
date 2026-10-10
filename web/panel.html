@@ -211,7 +211,7 @@ function showState(s) {
   $("cfgpath").textContent = s.config_path || "-";
   const mw = s.mouse_actions || [];
   $("mousewarn").hidden = !mw.length;
-  $("mousewarn").textContent = mw.length ? "Aksi ini masih pakai mouse (ditolak Valorant, error 87): " + mw.join(", ")
+  $("mousewarn").textContent = mw.length ? "Aksi ini masih pakai mouse: " + mw.join(", ")
     + ". Config yang dipakai bukan versi terbaru. Cek lokasi Config di kartu status." : "";
   $("cfgerr").hidden = !s.config_error;
   $("cfgerr").textContent = s.config_error

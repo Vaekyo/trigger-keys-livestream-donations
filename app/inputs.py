@@ -7,6 +7,7 @@ There is no aim logic of any kind: the app never looks at the screen or targets 
 from __future__ import annotations
 
 import logging
+import struct
 import sys
 import threading
 
@@ -37,41 +38,54 @@ class DryRunInput:
         return None
 
 
+# ---- raw INPUT records ----------------------------------------------------------------------
+# Built byte by byte with struct.pack instead of ctypes Structure/Union classes: on Python 3.14
+# for Windows the ctypes version produced INPUT records with type=0 (mouse) for keyboard events,
+# so keys were sent as garbage mouse data and Windows answered error 87. These layouts follow
+# winuser.h exactly (x64: 40 bytes, x86: 28 bytes) and do not depend on ctypes layout rules.
+INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
+KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE = 0x1, 0x2, 0x8
+MOUSEEVENTF_MOVE = 0x1
+MOUSE_BUTTON_FLAGS = {("LEFT", True): 0x2, ("LEFT", False): 0x4,
+                      ("RIGHT", True): 0x8, ("RIGHT", False): 0x10}
+
+
+def input_size(ptr64: bool) -> int:
+    return 40 if ptr64 else 28
+
+
+def pack_keyboard(scan: int, flags: int, ptr64: bool) -> bytes:
+    """INPUT{type=KEYBOARD, ki={wVk=0, wScan, dwFlags, time=0, dwExtraInfo=0}}"""
+    if ptr64:   # DWORD type, 4 pad | WORD vk, WORD scan, DWORD flags, DWORD time, 4 pad, ULONG_PTR extra
+        raw = struct.pack("<I4xHHII4xQ", INPUT_KEYBOARD, 0, scan, flags, 0, 0)
+    else:
+        raw = struct.pack("<IHHIII", INPUT_KEYBOARD, 0, scan, flags, 0, 0)
+    return raw.ljust(input_size(ptr64), b"\0")      # union is as large as MOUSEINPUT
+
+
+def pack_mouse(dx: int, dy: int, flags: int, ptr64: bool) -> bytes:
+    """INPUT{type=MOUSE, mi={dx, dy, mouseData=0, dwFlags, time=0, dwExtraInfo=0}}"""
+    if ptr64:   # DWORD type, 4 pad | LONG dx, LONG dy, DWORD data, DWORD flags, DWORD time, 4 pad, ULONG_PTR extra
+        raw = struct.pack("<I4xiiIII4xQ", INPUT_MOUSE, dx, dy, 0, flags, 0, 0)
+    else:
+        raw = struct.pack("<IiiIIII", INPUT_MOUSE, dx, dy, 0, flags, 0, 0)
+    return raw
+
+
 if IS_WINDOWS:
     import ctypes
     from ctypes import wintypes
 
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    ULONG_PTR = ctypes.c_size_t
+    PTR64 = ctypes.sizeof(ctypes.c_void_p) == 8
+    INPUT_SIZE = input_size(PTR64)
 
-    class MOUSEINPUT(ctypes.Structure):
-        _fields_ = [("dx", wintypes.LONG), ("dy", wintypes.LONG), ("mouseData", wintypes.DWORD),
-                    ("dwFlags", wintypes.DWORD), ("time", wintypes.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-    class KEYBDINPUT(ctypes.Structure):
-        _fields_ = [("wVk", wintypes.WORD), ("wScan", wintypes.WORD), ("dwFlags", wintypes.DWORD),
-                    ("time", wintypes.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-    class HARDWAREINPUT(ctypes.Structure):
-        _fields_ = [("uMsg", wintypes.DWORD), ("wParamL", wintypes.WORD), ("wParamH", wintypes.WORD)]
-
-    class _INPUTUNION(ctypes.Union):
-        _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
-
-    class INPUT(ctypes.Structure):
-        _anonymous_ = ("u",)
-        _fields_ = [("type", wintypes.DWORD), ("u", _INPUTUNION)]
-
-    INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
-    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE = 0x1, 0x2, 0x8
-    MOUSEEVENTF_MOVE = 0x1
-    MOUSE_BUTTON_FLAGS = {("LEFT", True): 0x2, ("LEFT", False): 0x4,
-                          ("RIGHT", True): 0x8, ("RIGHT", False): 0x10}
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
     WM_HOTKEY, MOD_NOREPEAT = 0x0312, 0x4000
 
-    user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
+    user32.SendInput.argtypes = (wintypes.UINT, ctypes.c_void_p, ctypes.c_int)
+    user32.SendInput.restype = wintypes.UINT
     user32.GetForegroundWindow.restype = wintypes.HWND
     user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
     kernel32.OpenProcess.restype = wintypes.HANDLE
@@ -80,14 +94,16 @@ if IS_WINDOWS:
     kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
                                                     wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
 
-    def _send(inp, what):
-        """what: human description for errors, e.g. 'keyboard K tekan' or 'mouse LEFT lepas'."""
-        if user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) != 1:
+    def _send(raw: bytes, what):
+        """raw: one packed INPUT record. what: description for errors, e.g. 'keyboard K tekan'."""
+        assert len(raw) == INPUT_SIZE
+        buf = ctypes.create_string_buffer(raw, INPUT_SIZE)
+        if user32.SendInput(1, buf, INPUT_SIZE) != 1:
             err = ctypes.get_last_error()
             fg = WindowsInput().foreground_process() or "?"
             raise OSError(f"SendInput gagal (error {err}) saat {what} | jendela aktif: {fg} | "
-                          f"INPUT={ctypes.sizeof(INPUT)}B type={inp.type} Python {sys.version.split()[0]} "
-                          f"{8 * ctypes.sizeof(ctypes.c_void_p)}-bit")
+                          f"INPUT={INPUT_SIZE}B type={raw[0]} Python {sys.version.split()[0]} "
+                          f"{64 if PTR64 else 32}-bit")
 
     class WindowsInput:
         real = True
@@ -95,9 +111,7 @@ if IS_WINDOWS:
         def _key(self, key, up):
             scan, extended = SCAN_CODES[key]
             flags = KEYEVENTF_SCANCODE | (KEYEVENTF_KEYUP if up else 0) | (KEYEVENTF_EXTENDEDKEY if extended else 0)
-            inp = INPUT(type=INPUT_KEYBOARD)
-            inp.ki = KEYBDINPUT(0, scan, flags, 0, 0)
-            _send(inp, f"keyboard {key} {'lepas' if up else 'tekan'}")
+            _send(pack_keyboard(scan, flags, PTR64), f"keyboard {key} {'lepas' if up else 'tekan'}")
 
         def key_down(self, key):
             self._key(key, False)
@@ -106,14 +120,11 @@ if IS_WINDOWS:
             self._key(key, True)
 
         def mouse_move(self, dx, dy):
-            inp = INPUT(type=INPUT_MOUSE)
-            inp.mi = MOUSEINPUT(int(dx), int(dy), 0, MOUSEEVENTF_MOVE, 0, 0)
-            _send(inp, "mouse gerak")
+            _send(pack_mouse(int(dx), int(dy), MOUSEEVENTF_MOVE, PTR64), "mouse gerak")
 
         def mouse_button(self, button, down):
-            inp = INPUT(type=INPUT_MOUSE)
-            inp.mi = MOUSEINPUT(0, 0, 0, MOUSE_BUTTON_FLAGS[(button, down)], 0, 0)
-            _send(inp, f"mouse {button} {'tekan' if down else 'lepas'}")
+            _send(pack_mouse(0, 0, MOUSE_BUTTON_FLAGS[(button, down)], PTR64),
+                  f"mouse {button} {'tekan' if down else 'lepas'}")
 
         def foreground_process(self):
             """File name of the process that owns the focused window, e.g. 'VALORANT-Win64-Shipping.exe'."""

@@ -180,7 +180,7 @@ Tier bawaan (kelipatan Rp2.000):
 | Rp10.000 | Ultimate | X → K |
 
 **Wajib di Valorant:** Settings → Controls → Combat → **Fire** → isi tombol **kedua** = `K`.
-Skill/ult dipakai lewat tombol K (keyboard), karena Valorant menolak klik mouse buatan (error 87).
+Skill/ult dipakai lewat tombol K (keyboard), bukan klik mouse.
 
 ```yaml
 - name: Random skill
@@ -206,7 +206,8 @@ Step: `tap`, `random_tap`, `click`, `hold`, `spam`, `wait`, `mouse`, `jitter`. P
 Keybind bawaan = default Valorant (Space, Ctrl, C/Q/E, G, X). Ganti kalau bind kamu beda.
 Mau tambah tier? Salin satu blok, ganti `name` dan `min_amount` (mis. 12000), simpan.
 
-Catatan: Valorant menolak input **mouse** buatan (error 87), jadi aksi default hanya pakai keyboard.
+Catatan: aksi default hanya pakai keyboard. (Error 87 di versi v1–v11 ternyata bug di app sendiri: di Python 3.14
+data tombol terkirim ke Windows sebagai data mouse. Sudah diperbaiki di v12.)
 `safety.fire_key: K` membuat setiap step `click: LEFT` (misalnya dari config versi lama) otomatis menekan **K**,
 bukan klik mouse. Kosongkan `fire_key` hanya kalau memang mau klik mouse sungguhan.
 Kalau skill sedang tidak ada charge, tombol K (Fire) akan menembakkan senjata sekali ke arah mana pun
@@ -276,7 +277,7 @@ tests/              unit test (python -m unittest discover tests)
 | "Hotkey gagal didaftarkan" | Tombol dipakai aplikasi lain. Ganti `kill_switch_key`. |
 | Donasi dobel | Trakteer: pakai satu mode saja (webhook **atau** websocket). |
 | Trakteer webhook 403 / error 1003 | Webhook URL masih `127.0.0.1`. Pakai alamat ngrok, atau pindah ke mode websocket. |
-| `SendInput gagal (error 87)` di aksi mouse | Valorant menolak mouse buatan. Pakai step keyboard (`tap`), bukan `click`/`mouse`/`jitter`. |
+| `SendInput gagal (error 87)` | Pastikan pakai v12 atau lebih baru (bug Python 3.14 sudah diperbaiki). Kalau masih, jalankan `selftest.bat` dan kirim hasilnya. |
 | Skill cuma terpilih, tidak terpakai | 1) Fire kedua = `K` sudah di-set di Valorant? Tes tekan K manual. 2) Naikkan `wait` sebelum K (mis. 1200). |
 | Panel tidak bisa dibuka dari HP | WiFi sama? Link lengkap dengan `?token=`? Firewall Windows mengizinkan Python (Private)? |
 

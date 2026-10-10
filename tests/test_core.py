@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import struct
 import tempfile
 import threading
 import time
@@ -13,6 +14,7 @@ import yaml
 
 from app.config import ConfigError, ConfigStore, describe_steps, match_action, money, validate
 from app.engine import Aborted, Donation, Engine, StepRunner
+from app.inputs import pack_keyboard, pack_mouse
 from app.platforms import decode_channel_id, parse_amount, parse_tako, parse_trakteer, tako_signature_ok, trakteer_token_ok
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -175,6 +177,52 @@ class RunnerTests(unittest.TestCase):
         r.run([{"jitter": {"ms": 100, "strength": 30, "every": 10}}])
         self.assertEqual(sum(e[1] for e in fake.events), 0)
         self.assertEqual(sum(e[2] for e in fake.events), 0)
+
+
+class RawInputTests(unittest.TestCase):
+    """Byte layout of SendInput records must match winuser.h (offsets from the Windows SDK)."""
+
+    def test_keyboard_x64(self):
+        raw = pack_keyboard(0x25, 0x8, True)                       # K down
+        self.assertEqual(len(raw), 40)
+        self.assertEqual(struct.unpack_from("<I", raw, 0)[0], 1)    # type = INPUT_KEYBOARD
+        self.assertEqual(struct.unpack_from("<HHII", raw, 8), (0, 0x25, 0x8, 0))
+        self.assertEqual(struct.unpack_from("<Q", raw, 24)[0], 0)
+
+    def test_keyboard_x86(self):
+        raw = pack_keyboard(0x10, 0xA, False)                      # Q up
+        self.assertEqual(len(raw), 28)
+        self.assertEqual(struct.unpack_from("<IHHII", raw, 0), (1, 0, 0x10, 0xA, 0))
+
+    def test_mouse_x64(self):
+        raw = pack_mouse(-5, 7, 0x2, True)
+        self.assertEqual(len(raw), 40)
+        self.assertEqual(struct.unpack_from("<I", raw, 0)[0], 0)    # type = INPUT_MOUSE
+        self.assertEqual(struct.unpack_from("<iiIII", raw, 8), (-5, 7, 0, 0x2, 0))
+
+    def test_mouse_x86(self):
+        raw = pack_mouse(3, -4, 0x1, False)
+        self.assertEqual(len(raw), 28)
+        self.assertEqual(struct.unpack_from("<IiiIII", raw, 0), (0, 3, -4, 0, 0x1, 0))
+
+    def test_matches_reference_ctypes_layout(self):
+        # Explicit-offset reference (no anonymous union, fixed-width types) for x64.
+        import ctypes
+        class KI(ctypes.Structure):
+            _fields_ = [("vk", ctypes.c_uint16), ("scan", ctypes.c_uint16), ("flags", ctypes.c_uint32),
+                        ("time", ctypes.c_uint32), ("extra", ctypes.c_uint64)]
+        class MI(ctypes.Structure):
+            _fields_ = [("dx", ctypes.c_int32), ("dy", ctypes.c_int32), ("data", ctypes.c_uint32),
+                        ("flags", ctypes.c_uint32), ("time", ctypes.c_uint32), ("extra", ctypes.c_uint64)]
+        class U(ctypes.Union):
+            _fields_ = [("mi", MI), ("ki", KI)]
+        class IN(ctypes.Structure):
+            _fields_ = [("type", ctypes.c_uint32), ("u", U)]
+        ref = IN(); ref.type = 1; ref.u.ki.scan = 0x25; ref.u.ki.flags = 0x8
+        self.assertEqual(ctypes.sizeof(IN), 40)
+        self.assertEqual(bytes(ref), pack_keyboard(0x25, 0x8, True))
+        ref = IN(); ref.type = 0; ref.u.mi.dx = 12; ref.u.mi.dy = -3; ref.u.mi.flags = 0x1
+        self.assertEqual(bytes(ref), pack_mouse(12, -3, 0x1, True))
 
 
 class PlatformTests(unittest.TestCase):
