@@ -45,6 +45,13 @@ def used_keys(actions) -> set[str]:
     return keys
 
 
+def uses_mouse(step, fire_key) -> bool:
+    """True if a step really sends mouse input (a LEFT click becomes fire_key when that is set)."""
+    if "click" in step:
+        return not (fire_key and step["click"] == "LEFT")
+    return "mouse" in step or "jitter" in step
+
+
 def release(backend, key):
     """Key-up for a key name, or button-up for 'MOUSE_LEFT' / 'MOUSE_RIGHT'."""
     if key.startswith("MOUSE_"):
@@ -114,6 +121,15 @@ class StepRunner:
         self.held.discard(key)
 
     def _click(self, button):
+        fire_key = self.s.get("fire_key")
+        if fire_key and button == "LEFT":
+            # Keyboard Fire bind instead of a mouse click (Valorant rejects injected mouse input).
+            self._down(fire_key)
+            try:
+                self.sleep(0.15)
+            finally:
+                self._up(fire_key)
+            return
         self.b.mouse_button(button, True)
         self.held.add("MOUSE_" + button)
         self.sent.append("MOUSE_" + button)
@@ -249,7 +265,7 @@ class Engine:
                 "foreground": fg, "focus_process": s["focus_process"],
                 "config_error": self.store.error, "config_path": str(self.store.path),
                 "mouse_actions": [a["name"] for a in self.store.get()["actions"] if a["enabled"] and any(
-                    k in st for st in a["steps"] for k in ("click", "mouse", "jitter"))]}
+                    uses_mouse(st, s["fire_key"]) for st in a["steps"])]}
 
     # ---- control ----------------------------------------------------------
     def set_paused(self, paused: bool, source="api"):
@@ -274,7 +290,8 @@ class Engine:
         cfg = self.store.get()
         if cfg["safety"]["dry_run"] or not self.backend.real:
             return
-        for key in used_keys(cfg["actions"]):
+        keys = used_keys(cfg["actions"]) | ({cfg["safety"]["fire_key"]} if cfg["safety"]["fire_key"] else set())
+        for key in keys:
             try:
                 release(self.backend, key)
             except Exception:

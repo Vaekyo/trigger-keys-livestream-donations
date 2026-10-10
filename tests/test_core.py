@@ -87,6 +87,8 @@ class ConfigTests(unittest.TestCase):
         skill = next(a for a in self.cfg["actions"] if a["name"] == "Random skill")
         self.assertEqual(describe_steps(skill["steps"]), "C/Q/E → tunggu 0.9 dtk → tahan K")
         self.assertIn("KLIK MOUSE", describe_steps([{"click": "LEFT"}]))
+        self.assertEqual(describe_steps([{"click": "LEFT"}], "K"), "tahan K")
+        self.assertEqual(self.cfg["safety"]["fire_key"], "K")
 
     def test_broken_edit_keeps_old_config_and_reports_error(self):
         with tempfile.TemporaryDirectory() as d:
@@ -252,6 +254,26 @@ class EngineTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_state_flags_mouse_actions(self):
         self.assertEqual(self.engine.state()["mouse_actions"], [])
+
+    async def test_old_config_with_mouse_click_presses_fire_key(self):
+        # Simulates an outdated config.yaml copied from an older version: "click: LEFT" after the skill.
+        path = Path(self.tmp.name) / "config.yaml"
+        old = path.read_text(encoding="utf-8").replace("key: K", "key: LCTRL")   # make sure K only comes from fire_key
+        cfg = yaml.safe_load(old)
+        skill = next(a for a in cfg["actions"] if a["name"] == "Random skill")
+        skill["steps"] = [{"random_tap": ["C", "Q", "E"]}, {"wait": 20}, {"click": "LEFT"}]
+        cfg["safety"].pop("fire_key", None)            # old configs don't have this setting
+        path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+        import os
+        os.utime(path, (time.time() + 5, time.time() + 5))
+        self.assertIsNone(self.engine.store.error)
+        self.assertEqual(self.engine.state()["mouse_actions"], [])
+        self.engine.submit(Donation("test", "old1", "A", 6000))
+        await asyncio.wait_for(self.engine.queue.join(), 5)
+        self.assertFalse([e for e in self.fake.events if e[0].startswith("click")])
+        self.assertIn(("down", "K"), self.fake.events)
+        self.assertRegex(self.engine.recent_log[-1]["result"], r"^ok \| tombol: [CQE] → K$")
+        self.assertEqual(self.fake.down, set())
 
     async def test_paused_donation_expires_without_input(self):
         self.engine.set_paused(True)

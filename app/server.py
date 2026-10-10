@@ -166,7 +166,7 @@ def build_local_app(engine, store, hub: Hub, control_token: str) -> web.Applicat
             "config_path": str(store.path),
             "actions": [{"name": a["name"], "min_amount": a["min_amount"], "enabled": a["enabled"],
                          "overlay_text": a["overlay_text"], "cooldown_s": a["cooldown_s"],
-                         "inputs": describe_steps(a["steps"])}
+                         "inputs": describe_steps(a["steps"], cfg["safety"]["fire_key"])}
                         for a in cfg["actions"]]})
 
     async def recent(_):

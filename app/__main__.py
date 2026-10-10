@@ -137,7 +137,7 @@ async def main():
         print(" Aksi aktif:")
         for a in cfg["actions"]:
             if a["enabled"]:
-                print(f"   {money(cfg, a['min_amount']):>15}  {a['name']:<16} {describe_steps(a['steps'])}")
+                print(f"   {money(cfg, a['min_amount']):>15}  {a['name']:<16} {describe_steps(a['steps'], cfg['safety']['fire_key'])}")
         print()
         try:
             await asyncio.gather(*tasks)

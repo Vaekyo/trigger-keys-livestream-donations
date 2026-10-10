@@ -24,6 +24,9 @@ SAFETY_DEFAULTS = {
     "when_unfocused": "wait",
     "dry_run": False,
     "tap_ms": 40,
+    # Valorant rejects injected mouse clicks (error 87). Every "click: LEFT" step therefore presses this
+    # keyboard key instead (bind it as the second Fire key in Valorant). Empty = real mouse click.
+    "fire_key": "K",
 }
 SERVER_DEFAULTS = {"panel_port": 8787, "webhook_port": 8788, "allow_lan": False}
 OVERLAY_DEFAULTS = {"template": "{donor} donated {amount} → {action}!", "duration_s": 6,
@@ -103,8 +106,9 @@ def validate(raw) -> dict:
         raise ConfigError("safety.when_unfocused harus 'wait' atau 'skip'")
     try:
         parse_hotkey(str(s["kill_switch_key"]))
+        s["fire_key"] = normalize_key(s["fire_key"]) if s["fire_key"] else None
     except ValueError as e:
-        raise ConfigError(str(e)) from e
+        raise ConfigError(f"safety: {e}") from e
 
     actions_raw = raw.get("actions") or []
     names = [a.get("name") for a in actions_raw if isinstance(a, dict)]
@@ -129,7 +133,7 @@ def validate(raw) -> dict:
     return cfg
 
 
-def describe_steps(steps) -> str:
+def describe_steps(steps, fire_key=None) -> str:
     """Human summary of an action's input, e.g. 'C/Q/E → tunggu 0.9 dtk → tahan K'."""
     out = []
     for step in steps:
@@ -139,7 +143,7 @@ def describe_steps(steps) -> str:
         elif kind == "random_tap":
             out.append("/".join(arg))
         elif kind == "click":
-            out.append(f"KLIK MOUSE {arg}")
+            out.append(f"tahan {fire_key}" if fire_key and arg == "LEFT" else f"KLIK MOUSE {arg}")
         elif kind == "hold":
             out.append(f"tahan {arg['key']}" + (f" {arg['ms'] / 1000:g} dtk" if arg["ms"] >= 1000 else ""))
         elif kind == "wait":

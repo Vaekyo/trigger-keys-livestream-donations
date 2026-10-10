@@ -18,6 +18,8 @@ safety:
   when_unfocused: wait          # wait = tunggu sampai Valorant fokus lagi, skip = langsung lewati
   dry_run: false                # true = tidak kirim input sama sekali (cuma log + overlay)
   tap_ms: 40                    # lama 1 kali "tap" tombol
+  fire_key: K                   # "click: LEFT" otomatis jadi tombol ini (Valorant menolak klik mouse buatan).
+                                # Set juga di Valorant: Settings > Controls > Combat > Fire > tombol kedua = K
 
 server:
   panel_port: 8787              # panel, overlay, price list (JANGAN di-tunnel)

@@ -207,6 +207,8 @@ Keybind bawaan = default Valorant (Space, Ctrl, C/Q/E, G, X). Ganti kalau bind k
 Mau tambah tier? Salin satu blok, ganti `name` dan `min_amount` (mis. 12000), simpan.
 
 Catatan: Valorant menolak input **mouse** buatan (error 87), jadi aksi default hanya pakai keyboard.
+`safety.fire_key: K` membuat setiap step `click: LEFT` (misalnya dari config versi lama) otomatis menekan **K**,
+bukan klik mouse. Kosongkan `fire_key` hanya kalau memang mau klik mouse sungguhan.
 Kalau skill sedang tidak ada charge, tombol K (Fire) akan menembakkan senjata sekali ke arah mana pun
 kamu sedang melihat. `selftest.bat` bisa dipakai untuk cek input keyboard/mouse di desktop.
 
