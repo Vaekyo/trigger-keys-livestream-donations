@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 if not exist .venv (
   echo [setup] membuat virtualenv...
-  rem Prefer Python 3.13, 3.12 or 3.11 like the v7 setup, otherwise fall back to what is installed
+  rem Prefer Python 3.13, 3.12 or 3.11, otherwise fall back to what is installed
   set "PY="
   for %%v in (3.13 3.12 3.11) do if not defined PY py -%%v -c "pass" >nul 2>&1 && set "PY=py -%%v"
   if not defined PY py -3 -c "pass" >nul 2>&1 && set "PY=py -3"

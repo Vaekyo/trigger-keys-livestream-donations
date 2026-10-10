@@ -39,10 +39,10 @@ class DryRunInput:
 
 
 # ---- raw INPUT records ----------------------------------------------------------------------
-# Built byte by byte with struct.pack instead of ctypes Structure/Union classes: on Python 3.14
-# for Windows the ctypes version produced INPUT records with type=0 (mouse) for keyboard events,
-# so keys were sent as garbage mouse data and Windows answered error 87. These layouts follow
-# winuser.h exactly (x64: 40 bytes, x86: 28 bytes) and do not depend on ctypes layout rules.
+# Built byte by byte with struct.pack, following winuser.h exactly (x64: 40 bytes, x86: 28 bytes),
+# so the record does not depend on ctypes layout rules and can be unit-tested on any OS.
+# (An earlier theory that Python 3.14 ctypes built bad records did not hold up: the old ctypes
+# records were correct too. See _send for the diagnostics printed when Windows refuses a record.)
 INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
 KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE = 0x1, 0x2, 0x8
 MOUSEEVENTF_MOVE = 0x1
@@ -98,11 +98,16 @@ if IS_WINDOWS:
         """raw: one packed INPUT record. what: description for errors, e.g. 'keyboard K tekan'."""
         assert len(raw) == INPUT_SIZE
         buf = ctypes.create_string_buffer(raw, INPUT_SIZE)
+        ctypes.set_last_error(0)            # so a stale error code from an earlier call can't show up here
         if user32.SendInput(1, buf, INPUT_SIZE) != 1:
             err = ctypes.get_last_error()
+            after = buf.raw[:INPUT_SIZE]
             fg = WindowsInput().foreground_process() or "?"
+            # 'sebelum' = what we built, 'sesudah' = the same buffer after Windows returned. If they differ,
+            # something else on this PC touched our input while refusing it.
             raise OSError(f"SendInput gagal (error {err}) saat {what} | jendela aktif: {fg} | "
-                          f"INPUT={INPUT_SIZE}B type={raw[0]} Python {sys.version.split()[0]} "
+                          f"sebelum={raw[:16].hex()} sesudah={after[:16].hex()}"
+                          f"{' (BERUBAH)' if after != raw else ''} | Python {sys.version.split()[0]} "
                           f"{64 if PTR64 else 32}-bit")
 
     class WindowsInput:

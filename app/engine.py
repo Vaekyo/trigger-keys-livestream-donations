@@ -112,8 +112,8 @@ class StepRunner:
         return min(ms / 1000, self.s["max_hold_s"])
 
     def _down(self, key):
+        self.b.key_down(key)          # if Windows refuses the press, nothing is held, so nothing to release
         self.held.add(key)
-        self.b.key_down(key)
         self.sent.append(key)
 
     def _up(self, key):
