@@ -41,7 +41,8 @@ Panel test / CLI ───────────────┘               
 
 ## 2. Instalasi (Windows)
 
-1. Install **Python 3.11+** dari <https://python.org> (centang *Add python.exe to PATH*).
+1. Install **Python 3.13** dari <https://python.org> (centang *Add python.exe to PATH*). Kalau ada beberapa versi Python,
+   `start.bat` otomatis memilih 3.13, 3.12 atau 3.11 dulu (versi yang terbukti jalan di v7).
 2. Download / clone repo ini.
 3. Klik dua kali **`start.bat`**. Saat pertama kali, script ini akan:
    - membuat `.venv` dan menginstall dependency,
